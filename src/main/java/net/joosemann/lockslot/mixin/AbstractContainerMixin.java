@@ -3,9 +3,15 @@ package net.joosemann.lockslot.mixin;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.LockedValues;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,13 +32,17 @@ public abstract class AbstractContainerMixin {
     @Nullable
     protected Slot hoveredSlot;
 
+    @Shadow
+    @Final
+    protected Component playerInventoryTitle;
+
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;"), method = "mouseClicked", cancellable = true)
     private void preventInventoryMouseClick(MouseButtonEvent mouseButtonEvent, boolean bl, CallbackInfoReturnable<Boolean> cir) {
 
         Slot slot = this.hoveredSlot;
 
         if (slot == null) {
-            LockSlot.LOGGER.info("SLOT IS NULL");
+            LockSlot.LOGGER.warn("WARNING: Null slot can not be clicked!");
 
             cir.setReturnValue(false);
         }
@@ -57,5 +67,35 @@ public abstract class AbstractContainerMixin {
              }
         }
 
+    }
+
+    @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;hasItem()Z"), method = "keyPressed", cancellable = true)
+    private void LockSlotEvent(KeyEvent keyEvent, CallbackInfoReturnable<Boolean> cir) {
+
+        if (keyEvent.input() == GLFW.GLFW_KEY_LEFT_ALT) {
+
+            // TODO: If this is not in the inventory, make sure to return
+            // if (!((Object) this instanceof InventoryScreen)) { cir.setReturnValue(true); return; }
+
+            Slot slot = this.hoveredSlot;
+
+            if (slot == null) {
+                LockSlot.LOGGER.warn("WARNING: Attempting to lock a null slot!");
+
+                // cir.setReturnValue(true);
+            }
+            else {
+                int row = (slot.y - 84) / 18;
+                int col = (slot.x - 8) / 18;
+
+                LockedValues.swapLockedArrayValue(row, col);
+
+                String s = "Clicked Slot's Position: (" + row + ", " + col + ").";
+                s += "After swapping, this slot is currently " + (LockedValues.getLockedValue(row, col) ? "" : "NOT ") + "locked.";
+
+                LockSlot.LOGGER.info(s);
+            }
+
+        }
     }
 }
