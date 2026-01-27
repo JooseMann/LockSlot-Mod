@@ -5,6 +5,8 @@ LockSlot is a simple Minecraft mod that allows the user to place a lock on an in
 
 <h4>Future Features</h4>
 
-1. Implement the locking mechanic
+1. Create a locking mechanism, where a player can not throw a given item.
 2. Create a GUI-based way to show the player that a specific slot is locked
+
+
 
