@@ -1,8 +1,0 @@
-TODO:
-1. Implement the locking mechanic
-    a. Prevent the player from throwing an item from the hotbar.
-    b. Prevent the player from throwing an item from the inventory.
-    c. Allow the player the choose which slots in the inventory this should apply to.
-2. Create a GUI-based way to show the player that a specific slot is locked
-    a. Create the icon.
-    b. Display the icon over locked slots.
