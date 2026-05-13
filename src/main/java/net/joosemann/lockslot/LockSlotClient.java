@@ -12,7 +12,7 @@ public class LockSlotClient implements ClientModInitializer {
         HotkeyManager.registerKeybinds();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player == null) { return; }
+            if (client.player == null) return;
 
             while (HotkeyManager.getLockKeybind().consumeClick()) {
 
