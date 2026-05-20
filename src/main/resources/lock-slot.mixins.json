@@ -13,7 +13,6 @@
     "requireAnnotations": true
   },
   "client": [
-    "AbstractContainerMixin",
-    "InventoryScreenMixin"
+    "AbstractContainerMixin"
   ]
 }

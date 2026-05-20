@@ -1,21 +1,27 @@
 package net.joosemann.lockslot.mixin;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.joosemann.lockslot.LockSlot;
+import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.client.LockedValues;
 import net.joosemann.lockslot.event.ItemDropEvent;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.world.inventory.Slot;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ListIterator;
 import java.util.Objects;
 
 @Mixin(AbstractContainerScreen.class)
@@ -43,6 +49,7 @@ public abstract class AbstractContainerMixin {
         }
         else {
             // Only prevent the mouse click if the slot is locked
+            // TODO: Make sure this is consistent across different screens
             if (ItemDropEvent.determineSlotLockStatus(slot)) {
                 cir.setReturnValue(false);
             }
@@ -53,10 +60,11 @@ public abstract class AbstractContainerMixin {
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;hasItem()Z"), method = "keyPressed", cancellable = true)
     private void LockSlotEvent(KeyEvent keyEvent, CallbackInfoReturnable<Boolean> cir) {
 
-        // TODO: Allow the keybind to drop an item to be dynamic (so it doesn't have to always be just Q)
         // If the player tries to drop an item, make sure that the slot is not locked
         // If it is, prevent the item from being thrown.
-        if (keyEvent.input() == GLFW.GLFW_KEY_Q) {
+        // Note: .options.keyDrop is the "dropping item" key, wrapping it in InputConstants.getKey() allows us
+        // to get the keybind's numerical code to compare with the given keyEvent.
+        if (keyEvent.input() == InputConstants.getKey(Minecraft.getInstance().options.keyDrop.saveString()).getValue()) {
             // Treat this like it's a click.
 
             Slot slot = this.hoveredSlot;
@@ -65,21 +73,28 @@ public abstract class AbstractContainerMixin {
                 cir.setReturnValue(false);
             }
             else {
+                // TODO: Make sure this is consistent across different screens
                 if (ItemDropEvent.determineSlotLockStatus(slot)) {
                     cir.setReturnValue(false);
                 }
             }
         }
-        else if (keyEvent.input() == GLFW.GLFW_KEY_LEFT_ALT) {
-            // TODO: If this is not in the inventory, make sure to return
-            // if (!((Object) this instanceof InventoryScreen)) { cir.setReturnValue(true); return; }
+        // Locking slots mechanism
+        // Like with keyDrop above, we wrap our custom keybind in InputConstants.getKey() to get the key's numerical code.
+        else if (keyEvent.input() == InputConstants.getKey(HotkeyManager.getLockKeybind().saveString()).getValue()) {
+            AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+
+            // If we are not in the inventory, make sure to return
+            // We only want to lock slots in the inventory
+            if (!(screen instanceof InventoryScreen)) {
+                cir.setReturnValue(false);
+                return;
+            }
 
             Slot slot = this.hoveredSlot;
 
             if (slot == null) {
                 LockSlot.LOGGER.warn("WARNING: Attempting to lock a null slot!");
-
-                // cir.setReturnValue(true);
             }
             else {
                 int row = (slot.y - 84) / 18;
@@ -104,4 +119,43 @@ public abstract class AbstractContainerMixin {
             }
         }
     }
+
+    @Inject(at = @At(value = "TAIL"), method = "renderBackground")
+    public void renderLocksMixin(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
+        // Render any slots that are locked
+
+        int x, y;
+        // We don't know what type of menu we're rendering at runtime
+        // So we use a wildcard cast to get the screen, since screen.getMenu().getSlot(int) still works fine
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+
+        // Don't try to render if there's no screen
+        if (Minecraft.getInstance().screen == null) return;
+
+        // Coordinates for the top left of the container, to use as reference when rendering locked icons.
+        int leftPos = (screen.width - 176) / 2;
+        int topPos = (screen.height - 166) / 2;
+
+        ListIterator<Slot> itr = LockedValues.getLockedListIterator();
+        Slot slot;
+
+        while (itr.hasNext()) {
+            if (itr.previousIndex() == -1) {
+                // At the start of the list, make sure to count the first element
+                itr.next();
+                slot = itr.previous();
+                itr.next();
+            }
+            else {
+                slot = itr.next();
+            }
+
+            // X and Y position for every slot, offset by the position of the container screen.
+            x = leftPos + slot.x;
+            y = topPos + slot.y;
+
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LockedValues.getLockRenderingId(), x, y, 0, 0, 16, 16, 16, 16);
+        }
+    }
+
 }
