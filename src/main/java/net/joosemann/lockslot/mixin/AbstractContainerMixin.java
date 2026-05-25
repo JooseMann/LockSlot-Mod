@@ -8,11 +8,15 @@ import net.joosemann.lockslot.event.ItemDropEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.inventory.RecipeBookType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.level.GameType;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -34,9 +38,11 @@ public abstract class AbstractContainerMixin {
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;"), method = "mouseClicked", cancellable = true)
     private void preventInventoryMouseClick(MouseButtonEvent mouseButtonEvent, boolean bl, CallbackInfoReturnable<Boolean> cir) {
 
-        // If we are in creative mode, don't prevent any mouse clicks.
-        if (Minecraft.getInstance().player != null &&
-                Objects.requireNonNull(Minecraft.getInstance().player.gameMode()).isCreative()) return;
+        // If we are in creative or spectator mode, don't prevent any mouse clicks.
+        if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
+            GameType gameMode = Minecraft.getInstance().player.gameMode();
+            if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
+        }
 
         Slot slot = this.hoveredSlot;
 
@@ -67,6 +73,12 @@ public abstract class AbstractContainerMixin {
         if (keyEvent.input() == InputConstants.getKey(Minecraft.getInstance().options.keyDrop.saveString()).getValue()) {
             // Treat this like it's a click.
 
+            // Don't prevent throwing items if the player is in creative or spectator mode (functionality is disabled)
+            if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
+                GameType gameMode = Minecraft.getInstance().player.gameMode();
+                if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
+            }
+
             Slot slot = this.hoveredSlot;
             if (slot == null) {
                 LockSlot.LOGGER.warn("WARNING: Null slot can not be thrown!");
@@ -82,13 +94,10 @@ public abstract class AbstractContainerMixin {
         // Locking slots mechanism
         // Like with keyDrop above, we wrap our custom keybind in InputConstants.getKey() to get the key's numerical code.
         else if (keyEvent.input() == InputConstants.getKey(HotkeyManager.getLockKeybind().saveString()).getValue()) {
-            AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-
-            // If we are not in the inventory, make sure to return
-            // We only want to lock slots in the inventory
-            if (!(screen instanceof InventoryScreen)) {
-                cir.setReturnValue(false);
-                return;
+            // If the player is in creative or spectator mode, don't allow them to lock slots (the feature is disabled)
+            if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
+                GameType gameMode = Minecraft.getInstance().player.gameMode();
+                if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
             }
 
             Slot slot = this.hoveredSlot;
@@ -112,7 +121,7 @@ public abstract class AbstractContainerMixin {
                     LockedValues.popLockedSlot(slot);
                 }
 
-                String s = "Clicked Slot's Position: (" + row + ", " + col + ").";
+                String s = "Clicked Slot's Position: (" + row + ", " + col + "), index:" + slot.index + "\n";
                 s += "After swapping, this slot is currently " + (LockedValues.getLockedValue(row, col) ? "" : "NOT ") + "locked.";
 
                 LockSlot.LOGGER.info(s);
@@ -132,9 +141,29 @@ public abstract class AbstractContainerMixin {
         // Don't try to render if there's no screen
         if (Minecraft.getInstance().screen == null) return;
 
+        // Don't try to render if the player is in creative or spectator mode (when the functionality is disabled)
+        if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
+            GameType gameMode = Minecraft.getInstance().player.gameMode();
+            if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
+        }
+
         // Coordinates for the top left of the container, to use as reference when rendering locked icons.
+        // The values 176 and 166 come from the container's (scaled) texture width and height.
         int leftPos = (screen.width - 176) / 2;
         int topPos = (screen.height - 166) / 2;
+
+        // Some screens have a recipe book menu that offsets the menu.
+        // Check if that is the case here, so we can adjust our scaling accordingly.
+        if (screen instanceof AbstractRecipeBookScreen<? extends RecipeBookMenu> recipeScreen && Minecraft.getInstance().player != null) {
+            RecipeBookType type = recipeScreen.getMenu().getRecipeBookType();
+            boolean recipeBookOpen = Minecraft.getInstance().player.getRecipeBook().isOpen(type);
+
+            if (recipeBookOpen) {
+                // When the recipe book is open, the "left" of the inventory is close to the center of the screen.
+                // This value gives the left position when the recipe book is open.
+                leftPos = (screen.width - 22) / 2;
+            }
+        }
 
         ListIterator<Slot> itr = LockedValues.getLockedListIterator();
         Slot slot;
@@ -154,6 +183,7 @@ public abstract class AbstractContainerMixin {
             x = leftPos + slot.x;
             y = topPos + slot.y;
 
+            // Render the locked icon itself
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LockedValues.getLockRenderingId(), x, y, 0, 0, 16, 16, 16, 16);
         }
     }

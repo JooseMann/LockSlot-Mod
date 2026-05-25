@@ -60,8 +60,8 @@ public class LockedValues {
             }
 
             // Remove the slot if we found it in the list
-            // Slots will only be equal if their indices match
-            if (lockedSlot.index == slot.index) {
+            // Slots will be equal if their coordinates match
+            if (lockedSlot.x == slot.x && lockedSlot.y == slot.y) {
                 // Remove this element from the list
                 lockedList.remove(itr.nextIndex() - 1);
                 return index;
