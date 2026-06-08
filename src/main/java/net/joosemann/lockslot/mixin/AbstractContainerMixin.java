@@ -7,12 +7,15 @@ import net.joosemann.lockslot.client.LockedValues;
 import net.joosemann.lockslot.event.ItemDropEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.inventory.*;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.inventory.RecipeBookType;
 import net.minecraft.world.inventory.Slot;
@@ -26,7 +29,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ListIterator;
-import java.util.Objects;
 
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerMixin {
@@ -57,6 +59,7 @@ public abstract class AbstractContainerMixin {
             // Only prevent the mouse click if the slot is locked
             // TODO: Make sure this is consistent across different screens
             if (ItemDropEvent.determineSlotLockStatus(slot)) {
+                if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
                 cir.setReturnValue(false);
             }
         }
@@ -87,6 +90,7 @@ public abstract class AbstractContainerMixin {
             else {
                 // TODO: Make sure this is consistent across different screens
                 if (ItemDropEvent.determineSlotLockStatus(slot)) {
+                    if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
                     cir.setReturnValue(false);
                 }
             }
@@ -125,6 +129,11 @@ public abstract class AbstractContainerMixin {
                 s += "After swapping, this slot is currently " + (LockedValues.getLockedValue(row, col) ? "" : "NOT ") + "locked.";
 
                 LockSlot.LOGGER.info(s);
+
+                // Play a sound effect when locking the slot
+                Minecraft client = Minecraft.getInstance();
+                SoundInstance sound = SimpleSoundInstance.forUI(SoundEvents.AMETHYST_CLUSTER_HIT, 1.0f, 1.0f);
+                client.getSoundManager().play(sound);
             }
         }
     }
