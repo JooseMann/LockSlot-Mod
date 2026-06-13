@@ -3,6 +3,7 @@ package net.joosemann.lockslot;
 import net.fabricmc.api.ModInitializer;
 
 import net.joosemann.lockslot.event.ItemDropEvent;
+import net.joosemann.lockslot.items.LockedIndicatorItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,5 +24,7 @@ public class LockSlot implements ModInitializer {
 		LOGGER.info("Hello Fabric world!");
 
 		ItemDropEvent.registerItemDropEvent();
+
+		LockedIndicatorItem.initialize();
 	}
 }

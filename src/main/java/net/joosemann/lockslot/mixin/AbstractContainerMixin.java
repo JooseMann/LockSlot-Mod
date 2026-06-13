@@ -1,10 +1,11 @@
 package net.joosemann.lockslot.mixin;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.datafixers.util.Pair;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.client.LockedValues;
-import net.joosemann.lockslot.event.ItemDropEvent;
+import net.joosemann.lockslot.items.LockedIndicatorItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.*;
@@ -16,13 +17,13 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.inventory.RecipeBookMenu;
-import net.minecraft.world.inventory.RecipeBookType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -37,12 +38,20 @@ public abstract class AbstractContainerMixin {
     @Nullable
     protected Slot hoveredSlot;
 
+    @Shadow
+    protected int leftPos;
+
+    @Shadow
+    protected int topPos;
+
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;"), method = "mouseClicked", cancellable = true)
     private void preventInventoryMouseClick(MouseButtonEvent mouseButtonEvent, boolean bl, CallbackInfoReturnable<Boolean> cir) {
 
+        LocalPlayer player = Minecraft.getInstance().player;
+
         // If we are in creative or spectator mode, don't prevent any mouse clicks.
-        if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
-            GameType gameMode = Minecraft.getInstance().player.gameMode();
+        if (player != null && player.gameMode() != null) {
+            GameType gameMode = player.gameMode();
             if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
         }
 
@@ -58,7 +67,7 @@ public abstract class AbstractContainerMixin {
         else {
             // Only prevent the mouse click if the slot is locked
             // TODO: Make sure this is consistent across different screens
-            if (ItemDropEvent.determineSlotLockStatus(slot)) {
+            if (LockedValues.determineSlotLockStatus(slot, this.leftPos, this.topPos)) {
                 if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
                 cir.setReturnValue(false);
             }
@@ -67,7 +76,7 @@ public abstract class AbstractContainerMixin {
     }
 
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;hasItem()Z"), method = "keyPressed", cancellable = true)
-    private void LockSlotEvent(KeyEvent keyEvent, CallbackInfoReturnable<Boolean> cir) {
+    private void keyPressEvent(KeyEvent keyEvent, CallbackInfoReturnable<Boolean> cir) {
 
         // If the player tries to drop an item, make sure that the slot is not locked
         // If it is, prevent the item from being thrown.
@@ -76,9 +85,11 @@ public abstract class AbstractContainerMixin {
         if (keyEvent.input() == InputConstants.getKey(Minecraft.getInstance().options.keyDrop.saveString()).getValue()) {
             // Treat this like it's a click.
 
+            LocalPlayer player = Minecraft.getInstance().player;
+
             // Don't prevent throwing items if the player is in creative or spectator mode (functionality is disabled)
-            if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
-                GameType gameMode = Minecraft.getInstance().player.gameMode();
+            if (player != null && player.gameMode() != null) {
+                GameType gameMode = player.gameMode();
                 if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
             }
 
@@ -89,7 +100,7 @@ public abstract class AbstractContainerMixin {
             }
             else {
                 // TODO: Make sure this is consistent across different screens
-                if (ItemDropEvent.determineSlotLockStatus(slot)) {
+                if (LockedValues.determineSlotLockStatus(slot, this.leftPos, this.topPos)) {
                     if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
                     cir.setReturnValue(false);
                 }
@@ -98,9 +109,19 @@ public abstract class AbstractContainerMixin {
         // Locking slots mechanism
         // Like with keyDrop above, we wrap our custom keybind in InputConstants.getKey() to get the key's numerical code.
         else if (keyEvent.input() == InputConstants.getKey(HotkeyManager.getLockKeybind().saveString()).getValue()) {
+
+            AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+
+            // Only allow locking slots in the inventory
+            if (!(screen instanceof InventoryScreen)) return;
+
+            LocalPlayer player = Minecraft.getInstance().player;
+
+            if (player == null) return;
+
             // If the player is in creative or spectator mode, don't allow them to lock slots (the feature is disabled)
-            if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
-                GameType gameMode = Minecraft.getInstance().player.gameMode();
+            if (player.gameMode() != null) {
+                GameType gameMode = player.gameMode();
                 if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
             }
 
@@ -116,13 +137,29 @@ public abstract class AbstractContainerMixin {
                 // isLocked is true if the slot is newly locked
                 boolean isLocked = LockedValues.swapLockedArrayValue(row, col);
 
+                // Given that we must be in the inventory to get here, we can safely take
+                // reference to the top-left slot as index 9 (as in the inventory), without
+                // worrying about different containers having different slot indexes.
+                Slot topLeftSlot = player.inventoryMenu.getSlot(9);
+
+                // Everything will be in reference to the top left slot.
+                // So, subtract the x and y values respectively to base it on the top left slot.
+                int adjustedX = slot.x - topLeftSlot.x;
+                int adjustedY = slot.y - topLeftSlot.y;
+
                 // Push the now locked slot to the list of locked slots,
                 // or pop it from the list, depending on whether the slot is now locked or not.
                 if (isLocked) {
-                    LockedValues.pushLockedSlot(slot);
+                    LockedValues.pushLockedSlot(adjustedX, adjustedY);
                 }
                 else {
-                    LockedValues.popLockedSlot(slot);
+                    int rc = LockedValues.popLockedSlot(adjustedX, adjustedY);
+
+                    // Make sure it was successfully popped
+                    // Display a console error if not
+                    if (rc == -1) {
+                        LockSlot.LOGGER.error("ERROR: Slot with item {} and (x, y) ({}, {}) was not popped from the list!", slot.getItem(), slot.x, slot.y);
+                    }
                 }
 
                 String s = "Clicked Slot's Position: (" + row + ", " + col + "), index:" + slot.index + "\n";
@@ -150,51 +187,83 @@ public abstract class AbstractContainerMixin {
         // Don't try to render if there's no screen
         if (Minecraft.getInstance().screen == null) return;
 
+        LocalPlayer player = Minecraft.getInstance().player;
+
         // Don't try to render if the player is in creative or spectator mode (when the functionality is disabled)
-        if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.gameMode() != null) {
-            GameType gameMode = Minecraft.getInstance().player.gameMode();
+        if (player != null && player.gameMode() != null) {
+            GameType gameMode = player.gameMode();
             if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
         }
 
-        // Coordinates for the top left of the container, to use as reference when rendering locked icons.
-        // The values 176 and 166 come from the container's (scaled) texture width and height.
-        int leftPos = (screen.width - 176) / 2;
-        int topPos = (screen.height - 166) / 2;
-
-        // Some screens have a recipe book menu that offsets the menu.
-        // Check if that is the case here, so we can adjust our scaling accordingly.
-        if (screen instanceof AbstractRecipeBookScreen<? extends RecipeBookMenu> recipeScreen && Minecraft.getInstance().player != null) {
-            RecipeBookType type = recipeScreen.getMenu().getRecipeBookType();
-            boolean recipeBookOpen = Minecraft.getInstance().player.getRecipeBook().isOpen(type);
-
-            if (recipeBookOpen) {
-                // When the recipe book is open, the "left" of the inventory is close to the center of the screen.
-                // This value gives the left position when the recipe book is open.
-                leftPos = (screen.width - 22) / 2;
-            }
-        }
-
-        ListIterator<Slot> itr = LockedValues.getLockedListIterator();
-        Slot slot;
+        ListIterator<Pair<Integer, Integer>> itr = LockedValues.getLockedListIterator();
+        Pair<Integer, Integer> coords;
+        Slot referenceSlot = screen.getMenu().getSlot(this.getTopLeftSlotIndex());
 
         while (itr.hasNext()) {
             if (itr.previousIndex() == -1) {
                 // At the start of the list, make sure to count the first element
                 itr.next();
-                slot = itr.previous();
+                coords = itr.previous();
                 itr.next();
             }
             else {
-                slot = itr.next();
+                coords = itr.next();
             }
 
-            // X and Y position for every slot, offset by the position of the container screen.
-            x = leftPos + slot.x;
-            y = topPos + slot.y;
+            // X and Y position for every slot, offset by the position of the reference (top left) slot and the top left of the container.
+            // (Note: we need the leftPos and topPos because referenceSlot is still in reference to the container, not the window)
+            x = referenceSlot.x + coords.getFirst() + this.leftPos;
+            y = referenceSlot.y + coords.getSecond() + this.topPos;
 
             // Render the locked icon itself
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LockedValues.getLockRenderingId(), x, y, 0, 0, 16, 16, 16, 16);
         }
     }
 
+    @Unique
+    private int getTopLeftSlotIndex() {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+
+        int tryReferenceIndex = LockedValues.tryGetReferenceSlotIndex(screen);
+
+        // We likely already computed this value in the reference slot cache.
+        // If that's the case, then take the index from there instead of recalculating it.
+        // Note: this function returns -1 if we have not already found it, and otherwise gives a positive integer index.
+        if (tryReferenceIndex != -1) {
+            return tryReferenceIndex;
+        }
+
+        // If not, then we have to manually compute it. Do that here.
+
+        // Error check, -1 for invalid state
+        if (Minecraft.getInstance().player == null) return -1;
+
+        // The top-left slot of the inventory has index 9. Find the equivalent slot for this container
+        Slot base = Minecraft.getInstance().player.inventoryMenu.getSlot(9);
+
+        // Store the current item. We will have to overwrite it with a custom item temporarily,
+        // so that we can tell which slot is the same across different screens.
+        ItemStack prevItem = base.getItem();
+
+        base.set(LockedIndicatorItem.ITEM.getDefaultInstance());
+
+        for (Slot slot : screen.getMenu().slots) {
+            // Slots will be effectively equivalent in everything except index and container
+            // So, check the rest of the traits to make sure they are all equal
+            if (slot.getItem().equals(base.getItem())) {
+                // We found the correct slot
+                // Return the slot back to its original state
+                base.set(prevItem);
+
+                // Add the new index to our reference cache, so that we don't have to recalculate this later.
+                LockedValues.addReferenceSlot(screen, slot.index);
+
+                // Return the index with respect to *this*, instead of the inventory
+                return slot.index;
+            }
+        }
+
+        // Not found, return -1 for error
+        return -1;
+    }
 }
