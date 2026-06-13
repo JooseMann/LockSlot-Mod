@@ -21,7 +21,7 @@ The mod is **not** currently available for download, as it still has many featur
 In no particular order, 
 - [X] Create a locking mechanism, where a player can not throw a given item.
 - [X] Create a GUI-based way to show the player that a specific slot is locked.
-  - [ ] Ensure that the system works thoroughly across different GUIs and their menus (such as recipe book menus).
+  - [X] Ensure that the system works thoroughly across different GUIs and their menus (such as recipe book menus).
 - [X] Provide noticeable feedback to the player when locking / unlocking a slot and when attempting to throw or pick up an item in a locked slot (e.g., a sound effect or chat message).
 - [ ] Save which slots are locked between game sessions.
 - [ ] Ensure that the mod works effectively and smoothly in multiplayer.
