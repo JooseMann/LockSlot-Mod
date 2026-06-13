@@ -1,0 +1,7 @@
+{
+  "item.lock-slot.locked_indicator": "Lock Indicator",
+  "itemTooltip.lock-slot.lock_indicator.0": "LockSlot",
+  "itemTooltip.lock-slot.lock_indicator.1": "This item is used internally by the LockSlot mod.",
+  "itemTooltip.lock-slot.lock_indicator.2": "Holding this item may cause issues with the UI.",
+  "itemTooltip.lock-slot.lock_indicator.3": "Please do not use!"
+}

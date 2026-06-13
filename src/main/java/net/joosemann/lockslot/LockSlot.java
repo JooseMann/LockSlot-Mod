@@ -2,7 +2,9 @@ package net.joosemann.lockslot;
 
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.joosemann.lockslot.event.ItemDropEvent;
+import net.joosemann.lockslot.event.TooltipUpdateEvent;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,5 +28,7 @@ public class LockSlot implements ModInitializer {
 		ItemDropEvent.registerItemDropEvent();
 
 		LockedIndicatorItem.initialize();
+
+		ItemTooltipCallback.EVENT.register(new TooltipUpdateEvent());
 	}
 }
