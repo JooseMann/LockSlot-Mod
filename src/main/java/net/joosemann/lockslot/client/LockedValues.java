@@ -1,7 +1,7 @@
 package net.joosemann.lockslot.client;
 
-import com.mojang.datafixers.util.Pair;
 import net.joosemann.lockslot.LockSlot;
+import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
@@ -17,7 +17,7 @@ public class LockedValues {
 
     // Linked List of all currently locked slots.
     // Holds the coordinates to every found slot
-    private static final LinkedList<Pair<Integer, Integer>> lockedList = new LinkedList<>();
+    private static final LinkedList<LockInstance> lockedList = new LinkedList<>();
 
     // Hashmap that associates a container screen to the index of the top-left slot.
     // This acts as a cache when rendering locked icons, so we don't need to recalculate that top-left slot every frame.
@@ -34,7 +34,7 @@ public class LockedValues {
     }
 
     // Get the iterator of lockedList
-    public static ListIterator<Pair<Integer, Integer>> getLockedListIterator() {
+    public static ListIterator<LockInstance> getLockedListIterator() {
         return lockedList.listIterator();
     }
 
@@ -47,29 +47,32 @@ public class LockedValues {
     }
 
     // Adds a slot to the list of locked slots
-    public static void pushLockedSlot(int x, int y) {
-        lockedList.add(new Pair<>(x, y)); // Pushes to the end of the list
+    public static void pushLockedSlot(LockInstance lock) {
+        lockedList.add(lock); // Pushes to the end of the list
     }
 
     // Returns the index of the now-popped slot, or -1 if the slot is not found
-    public static int popLockedSlot(int x, int y) {
+    public static int popLockedSlot(LockInstance given) {
         // Need to find where the right slot to remove is, iterate through the list to find it
-        ListIterator<Pair<Integer, Integer>> itr = lockedList.listIterator();
+        ListIterator<LockInstance> itr = lockedList.listIterator();
         int index = 0;
 
         // Keep looping through the iterator until finding the given slot
         while (itr.hasNext()) {
-            Pair<Integer, Integer> coordinates = itr.next();
+            LockInstance lock = itr.next();
 
             // Make sure we account for the first element here
             if (index == 0) {
-                coordinates = itr.previous();
+                lock = itr.previous();
                 itr.next();
             }
 
             // Remove the slot if we found it in the list
             // Slots will be equal if their coordinates match
-            if (coordinates.getFirst() == x && coordinates.getSecond() == y) {
+            if (lock.index() == given.index()
+                && lock.x() == given.x()
+                && lock.y() == given.y()) {
+
                 // Remove this element from the list
                 lockedList.remove(itr.nextIndex() - 1);
                 return index;

@@ -1,11 +1,11 @@
 package net.joosemann.lockslot.mixin;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.datafixers.util.Pair;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.client.LockedValues;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
+import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.*;
@@ -143,17 +143,18 @@ public abstract class AbstractContainerMixin {
                 Slot topLeftSlot = player.inventoryMenu.getSlot(9);
 
                 // Everything will be in reference to the top left slot.
-                // So, subtract the x and y values respectively to base it on the top left slot.
+                // So, subtract the index, x, and y values respectively to base it on the top left slot.
+                int adjustedIndex = slot.index - topLeftSlot.index;
                 int adjustedX = slot.x - topLeftSlot.x;
                 int adjustedY = slot.y - topLeftSlot.y;
 
                 // Push the now locked slot to the list of locked slots,
                 // or pop it from the list, depending on whether the slot is now locked or not.
                 if (isLocked) {
-                    LockedValues.pushLockedSlot(adjustedX, adjustedY);
+                    LockedValues.pushLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY));
                 }
                 else {
-                    int rc = LockedValues.popLockedSlot(adjustedX, adjustedY);
+                    int rc = LockedValues.popLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY));
 
                     // Make sure it was successfully popped
                     // Display a console error if not
@@ -195,25 +196,25 @@ public abstract class AbstractContainerMixin {
             if (gameMode == GameType.CREATIVE || gameMode == GameType.SPECTATOR) return;
         }
 
-        ListIterator<Pair<Integer, Integer>> itr = LockedValues.getLockedListIterator();
-        Pair<Integer, Integer> coords;
+        ListIterator<LockInstance> itr = LockedValues.getLockedListIterator();
+        LockInstance lock;
         Slot referenceSlot = screen.getMenu().getSlot(this.getTopLeftSlotIndex());
 
         while (itr.hasNext()) {
             if (itr.previousIndex() == -1) {
                 // At the start of the list, make sure to count the first element
                 itr.next();
-                coords = itr.previous();
+                lock = itr.previous();
                 itr.next();
             }
             else {
-                coords = itr.next();
+                lock = itr.next();
             }
 
             // X and Y position for every slot, offset by the position of the reference (top left) slot and the top left of the container.
             // (Note: we need the leftPos and topPos because referenceSlot is still in reference to the container, not the window)
-            x = referenceSlot.x + coords.getFirst() + this.leftPos;
-            y = referenceSlot.y + coords.getSecond() + this.topPos;
+            x = referenceSlot.x + lock.x() + this.leftPos;
+            y = referenceSlot.y + lock.y() + this.topPos;
 
             // Render the locked icon itself
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LockedValues.getLockRenderingId(), x, y, 0, 0, 16, 16, 16, 16);
