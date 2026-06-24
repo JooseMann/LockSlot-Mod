@@ -1,4 +1,4 @@
-package net.joosemann.lockslot.client;
+package net.joosemann.lockslot.data;
 
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.util.LockInstance;
@@ -10,14 +10,16 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.ListIterator;
 
+// Class holding all data relating to the mod.
+// Some classes that also work with this data will extend LockedValues to have closer access to the data as well.
 public class LockedValues {
     // 2D array that represents which slots in the inventory are currently locked.
     // NOTE: The last row is allocated for other slots (armor, off-hand, & crafting)
-    private static final boolean[][] lockedArray = new boolean[5][9];
+    protected static boolean[][] lockedArray = new boolean[5][9];
 
     // Linked List of all currently locked slots.
     // Holds the coordinates to every found slot
-    private static final LinkedList<LockInstance> lockedList = new LinkedList<>();
+    protected static LinkedList<LockInstance> lockedList = new LinkedList<>();
 
     // Hashmap that associates a container screen to the index of the top-left slot.
     // This acts as a cache when rendering locked icons, so we don't need to recalculate that top-left slot every frame.

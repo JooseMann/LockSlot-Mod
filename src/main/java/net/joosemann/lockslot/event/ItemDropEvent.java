@@ -1,6 +1,6 @@
 package net.joosemann.lockslot.event;
 
-import net.joosemann.lockslot.client.LockedValues;
+import net.joosemann.lockslot.data.LockedValues;
 import net.joosemann.lockslot.event.custom.ItemDropCallback;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;

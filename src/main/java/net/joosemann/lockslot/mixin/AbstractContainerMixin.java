@@ -3,7 +3,7 @@ package net.joosemann.lockslot.mixin;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
-import net.joosemann.lockslot.client.LockedValues;
+import net.joosemann.lockslot.data.LockedValues;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
 import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.Minecraft;

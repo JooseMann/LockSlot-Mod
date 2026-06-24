@@ -3,9 +3,15 @@ package net.joosemann.lockslot;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.joosemann.lockslot.event.PlayerLoginEvent;
 import net.joosemann.lockslot.event.ItemDropEvent;
 import net.joosemann.lockslot.event.TooltipUpdateEvent;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
+import net.joosemann.lockslot.networking.handlers.ServerNetworkHandlers;
+import net.joosemann.lockslot.networking.packets.AskForDataS2CPayload;
+import net.joosemann.lockslot.networking.packets.LockDataPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,10 +31,25 @@ public class LockSlot implements ModInitializer {
 
 		LOGGER.info("Hello Fabric world!");
 
-		ItemDropEvent.registerItemDropEvent();
-
+		// Register custom item
 		LockedIndicatorItem.initialize();
 
+		// Register events
+
+		ItemDropEvent.registerItemDropEvent();
 		ItemTooltipCallback.EVENT.register(new TooltipUpdateEvent());
+		ServerPlayConnectionEvents.JOIN.register(new PlayerLoginEvent());
+
+		// Register custom networking packets
+
+		// Register our "ask client for data" packet as S2C
+		PayloadTypeRegistry.playS2C().register(AskForDataS2CPayload.ID, AskForDataS2CPayload.STREAM_CODEC);
+
+		// Register sending lock data to both S2C and C2S, as we will be sending it back and forth.
+		PayloadTypeRegistry.playS2C().register(LockDataPayload.ID, LockDataPayload.STREAM_CODEC);
+		PayloadTypeRegistry.playC2S().register(LockDataPayload.ID, LockDataPayload.STREAM_CODEC);
+
+		// Register server-side networking handlers
+		ServerNetworkHandlers.registerServerReceivers();
 	}
 }
