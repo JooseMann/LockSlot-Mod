@@ -1,4 +1,5 @@
 {
+  "key.lock-slot.lock": "Toggle Inventory Slot Lock",
   "item.lock-slot.locked_indicator": "Lock Indicator",
   "itemTooltip.lock-slot.lock_indicator.0": "LockSlot",
   "itemTooltip.lock-slot.lock_indicator.1": "This item is used internally by the LockSlot mod.",
