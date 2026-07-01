@@ -20,9 +20,6 @@
 		],
 		"client": [
 			"net.joosemann.lockslot.LockSlotClient"
-		],
-		"fabric-datagen": [
-			"net.joosemann.lockslot.LockSlotDataGenerator"
 		]
 	},
 	"mixins": [
