@@ -2,6 +2,7 @@ package net.joosemann.lockslot.util;
 
 import net.joosemann.lockslot.data.LockedValues;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -16,6 +17,10 @@ public class HelperMethods extends LockedValues {
 
         // We also want to set lockedArray while we are here.
         // Each LockInstance has an index that we can use to place it into the array.
+        // Make sure to clear out lockedArray first, because it may have some residual true's from another world.
+        for (int i = 0; i < LockedValues.lockedArray.length; ++i) {
+            Arrays.fill(LockedValues.lockedArray[i], false);
+        }
 
         ListIterator<LockInstance> itr = LockedValues.getLockedListIterator();
         LockInstance lock;
