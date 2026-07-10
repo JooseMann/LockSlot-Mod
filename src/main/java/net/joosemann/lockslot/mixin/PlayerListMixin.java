@@ -1,7 +1,8 @@
 package net.joosemann.lockslot.mixin;
 
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.joosemann.lockslot.networking.packets.AskForDataS2CPayload;
+import net.joosemann.lockslot.LockSlot;
+import net.joosemann.lockslot.data.LockedValues;
+import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,11 +16,17 @@ public class PlayerListMixin {
     // Save our lock slot data on the player when everything else saves.
     @Inject(at = @At(value = "HEAD"), method = "save")
     protected void saveLockData(ServerPlayer serverPlayer, CallbackInfo ci) {
-        // We want to save our current lock data to the player as a data attachment.
-        // However, we don't have access to that current data, as it is located on the client-side,
-        // while we are on the server-side. Therefore, send a packet to the client to ask it for the data.
-        AskForDataS2CPayload payload = new AskForDataS2CPayload(true); // Boolean is a dummy variable
-        ServerPlayNetworking.send(serverPlayer, payload); // Sends to networking.handlers.ClientNetworkHandlers
+        // Check if we already have data attached.
+        // If so, we want to overwrite it in favor of our new data.
+        // Therefore, we remove the current data if it exists.
+        if (serverPlayer.hasAttached(LockInstance.LOCK_ATTACHMENT_TYPE)) {
+            serverPlayer.removeAttached(LockInstance.LOCK_ATTACHMENT_TYPE);
+        }
+
+        // Attach our current locked slots to the player, so they retain the information on the next session.
+        serverPlayer.setAttached(LockInstance.LOCK_ATTACHMENT_TYPE, LockedValues.getLockedList());
+
+        LockSlot.LOGGER.info("Saved lock data");
     }
 
 }

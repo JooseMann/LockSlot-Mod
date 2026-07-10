@@ -1,10 +1,12 @@
 package net.joosemann.lockslot.mixin;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.data.LockedValues;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
+import net.joosemann.lockslot.networking.packets.LockInstancePayload;
 import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -66,6 +68,7 @@ public abstract class AbstractContainerMixin {
         }
         else {
             // Only prevent the mouse click if the slot is locked
+            // This doubles as preventing hotkeys controlled by the mouse, if the slot is locked
             // TODO: Make sure this is consistent across different screens
             if (LockedValues.determineSlotLockStatus(slot, this.leftPos, this.topPos)) {
                 if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
@@ -150,17 +153,28 @@ public abstract class AbstractContainerMixin {
 
                 // Push the now locked slot to the list of locked slots,
                 // or pop it from the list, depending on whether the slot is now locked or not.
+                // Also send a packet to the server so that it knows of the updated state
                 if (isLocked) {
-                    LockedValues.pushLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY));
+                    LockInstance lock = new LockInstance(adjustedIndex, adjustedX, adjustedY, true);
+
+                    LockedValues.pushLockedSlot(lock);
+
+                    LockInstancePayload packet = new LockInstancePayload(lock);
+                    ClientPlayNetworking.send(packet);
                 }
                 else {
-                    int rc = LockedValues.popLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY));
+                    LockInstance lock = new LockInstance(adjustedIndex, adjustedX, adjustedY, false);
+
+                    int rc = LockedValues.popLockedSlot(lock);
 
                     // Make sure it was successfully popped
                     // Display a console error if not
                     if (rc == -1) {
                         LockSlot.LOGGER.error("ERROR: Slot with item {} and (x, y) ({}, {}) was not popped from the list!", slot.getItem(), slot.x, slot.y);
                     }
+
+                    LockInstancePayload packet = new LockInstancePayload(lock);
+                    ClientPlayNetworking.send(packet);
                 }
 
                 String s = "Clicked Slot's Position: (" + row + ", " + col + "), index:" + slot.index + "\n";

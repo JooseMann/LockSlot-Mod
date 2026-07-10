@@ -1,5 +1,7 @@
 package net.joosemann.lockslot.event;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -9,6 +11,7 @@ import net.minecraft.world.item.TooltipFlag;
 
 import java.util.List;
 
+@Environment(EnvType.CLIENT)
 public class TooltipUpdateEvent implements ItemTooltipCallback {
 
     // If we are looking at our custom locked indicator item, then we want to add our own tooltip.

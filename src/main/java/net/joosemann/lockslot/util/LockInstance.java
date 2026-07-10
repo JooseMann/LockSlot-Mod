@@ -15,19 +15,25 @@ import java.util.LinkedList;
 import java.util.List;
 
 // Record that keeps track of the information for a single locked slot.
+// That is, a standardized index, the corresponding x and y coordinate, and whether we are adding or removing this lock.
 // The record on its own contains all of this information, as well as static variables to help with data persistence.
-public record LockInstance(int index, int x, int y) {
+public record LockInstance(int index, int x, int y, boolean locking) {
 
     // Codec for use in serializing LockInstances, for use in saving and retrieving data from our persistent data.
     public static Codec<LockInstance> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.INT.fieldOf("index").forGetter(LockInstance::index),
             Codec.INT.fieldOf("x").forGetter(LockInstance::x),
-            Codec.INT.fieldOf("y").forGetter(LockInstance::y)
+            Codec.INT.fieldOf("y").forGetter(LockInstance::y),
+            Codec.BOOL.fieldOf("locking").forGetter(LockInstance::locking)
     ).apply(instance, LockInstance::new));
 
     // Stream codec to be used while sending packets containing data about LockInstances while using persistent data.
-    // Sending this data around means sending all of our LockInstances, so we have a List<LockInstance> as our data type
-    public static StreamCodec<ByteBuf, List<LockInstance>> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC.listOf());
+    // With persistent data, sending packets means sending the list of all LockInstances together.
+    public static StreamCodec<ByteBuf, List<LockInstance>> LIST_STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC.listOf());
+
+    // Stream codec used to send a packet containing data about one LockInstance.
+    // Locking slots happens client-side, so this is used to send data to the server to keep it in sync with locks.
+    public static StreamCodec<ByteBuf, LockInstance> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
 
     // Data Attachment for all locked slots. Used to save and retrieve the data between sessions.
     // Like STREAM_CODEC, we want to save and retrieve all the data from one data attachment, so we attach a List<LockInstance>

@@ -35,6 +35,11 @@ public class LockedValues {
         return lockedArray[i][j];
     }
 
+    // Get the lockedList
+    public static LinkedList<LockInstance> getLockedList() {
+        return lockedList;
+    }
+
     // Get the iterator of lockedList
     public static ListIterator<LockInstance> getLockedListIterator() {
         return lockedList.listIterator();

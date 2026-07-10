@@ -1,33 +1,33 @@
 package net.joosemann.lockslot.networking.handlers;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.data.LockedValues;
-import net.joosemann.lockslot.networking.packets.LockDataPayload;
+import net.joosemann.lockslot.networking.packets.LockInstancePayload;
 import net.joosemann.lockslot.util.LockInstance;
-import net.minecraft.server.level.ServerPlayer;
 
 public class ServerNetworkHandlers extends LockedValues {
     public static void registerServerReceivers() {
-        // SaveLockData Packet
-        // Received from the client after asking for its lock data.
-        // Used here to save the data via a data attachment to the player server-side.
-        ServerPlayNetworking.registerGlobalReceiver(LockDataPayload.ID, ((payload, context) -> {
+        // AddLockInstance Packet
+        // Received from the client when the list of locked slots is updated.
+        // Used to keep the client and the server in sync with the list of locked slots.
+        ServerPlayNetworking.registerGlobalReceiver(LockInstancePayload.ID, ((payload, context) -> {
+            // If we are playing on a dedicated server, make sure to update locked values there as well
+            if (context.server().isDedicatedServer()) {
+                // Get the lock and its row & column indices
+                LockInstance lock = payload.lock();
+                int rowIndex = lock.index() / 9;
+                int colIndex = lock.index() % 9;
 
-            // Get the player, guaranteed to be non-null
-            ServerPlayer player = context.player();
+                // Check if we are adding or removing this LockInstance from the list
+                if (lock.locking()) { // Adding
+                    LockedValues.pushLockedSlot(lock);
+                } else { // Removing
+                    LockedValues.popLockedSlot(lock);
+                }
 
-            // Check if we already have data attached.
-            // If so, we want to overwrite it in favor of our new data.
-            // Therefore, we remove the current data if it exists.
-            if (player.hasAttached(LockInstance.LOCK_ATTACHMENT_TYPE)) {
-                player.removeAttached(LockInstance.LOCK_ATTACHMENT_TYPE);
+                // Swap the corresponding value on the boolean array.
+                LockedValues.swapLockedArrayValue(rowIndex, colIndex);
             }
-
-            // Attach our current locked slots to the player, so they retain the information on the next session.
-            player.setAttached(LockInstance.LOCK_ATTACHMENT_TYPE, payload.lockedList());
-
-            LockSlot.LOGGER.info("Saved lock data");
         }));
     }
 }
