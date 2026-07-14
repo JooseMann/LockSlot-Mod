@@ -4,7 +4,6 @@ import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.inventory.Slot;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -99,12 +98,22 @@ public class LockedValues {
         referenceSlotCache.put(screen, index);
     }
 
-    public static boolean determineSlotLockStatus(Slot slot, int leftPos, int topPos) {
-        // TODO: Get the other values for extra slots! (armor and off-hand)
-        // NOTE: The values from slot.y and slot.x are flipped for row and col,
-        // because row corresponds to the y-axis and not the x-axis.
-        int row = (slot.y - 84) / 18;
-        int col = (slot.x - 8) / 18;
+    public static boolean determineSlotLockStatus(int adjustedIndex, boolean alwaysShow, boolean isInventory) {
+        // If we are dealing with locks that should not always be shown,
+        // then they shouldn't always prevent drops / clicks, too.
+        // This prevents locks in the inventory from interfering with other screens.
+        if (!alwaysShow && !isInventory) return false;
+
+        // Get the row and column of the slot from its index (relative to the top-left inventory slot)
+        int row = adjustedIndex / 9;
+        int col = adjustedIndex % 9;
+
+        // If our adjusted index is negative, then we are dealing with a slot in the 5th (extra) row
+        // Adjust our row and col values accordingly
+        if (adjustedIndex < 0) {
+            row = 4; // Extras row
+            col = (adjustedIndex + 9) % 9; // Make adjustedIndex positive without changing result of % 9 by adding 9
+        }
 
         // In many containers (chests, crafting tables, etc.), any additional slots may not be locked.
         // Those additional slots are always above our inventory, so these cases will have row < 0.

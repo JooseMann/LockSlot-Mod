@@ -16,13 +16,14 @@ import java.util.List;
 
 // Record that keeps track of the information for a single locked slot.
 // The record on its own contains all of this information, as well as static variables to help with data persistence.
-public record LockInstance(int index, int x, int y) {
+public record LockInstance(int index, int x, int y, boolean alwaysEnabled) {
 
     // Codec for use in serializing LockInstances, for use in saving and retrieving data from our persistent data.
     public static Codec<LockInstance> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.INT.fieldOf("index").forGetter(LockInstance::index),
             Codec.INT.fieldOf("x").forGetter(LockInstance::x),
-            Codec.INT.fieldOf("y").forGetter(LockInstance::y)
+            Codec.INT.fieldOf("y").forGetter(LockInstance::y),
+            Codec.BOOL.fieldOf("alwaysEnabled").forGetter(LockInstance::alwaysEnabled)
     ).apply(instance, LockInstance::new));
 
     // Stream codec to be used while sending packets containing data about LockInstances while using persistent data.

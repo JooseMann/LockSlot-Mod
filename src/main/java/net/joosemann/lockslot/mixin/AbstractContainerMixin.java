@@ -65,9 +65,14 @@ public abstract class AbstractContainerMixin {
             cir.setReturnValue(false);
         }
         else {
+            // Helper variables
+            int adjustedIndex = calculateAdjustedIndex(slot);
+            boolean alwaysShow = adjustedIndex >= 0 && adjustedIndex <= 35;
+            AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+
             // Only prevent the mouse click if the slot is locked
             // TODO: Make sure this is consistent across different screens
-            if (LockedValues.determineSlotLockStatus(slot, this.leftPos, this.topPos)) {
+            if (LockedValues.determineSlotLockStatus(adjustedIndex, alwaysShow, screen instanceof InventoryScreen)) {
                 if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
                 cir.setReturnValue(false);
             }
@@ -77,6 +82,8 @@ public abstract class AbstractContainerMixin {
 
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;hasItem()Z"), method = "keyPressed", cancellable = true)
     private void keyPressEvent(KeyEvent keyEvent, CallbackInfoReturnable<Boolean> cir) {
+
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 
         // If the player tries to drop an item, make sure that the slot is not locked
         // If it is, prevent the item from being thrown.
@@ -99,8 +106,12 @@ public abstract class AbstractContainerMixin {
                 cir.setReturnValue(false);
             }
             else {
+                // Helper variables
+                int adjustedIndex = calculateAdjustedIndex(slot);
+                boolean alwaysShow = adjustedIndex >= 0 && adjustedIndex <= 35;
+
                 // TODO: Make sure this is consistent across different screens
-                if (LockedValues.determineSlotLockStatus(slot, this.leftPos, this.topPos)) {
+                if (LockedValues.determineSlotLockStatus(adjustedIndex, alwaysShow, screen instanceof InventoryScreen)) {
                     if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
                     cir.setReturnValue(false);
                 }
@@ -109,8 +120,6 @@ public abstract class AbstractContainerMixin {
         // Locking slots mechanism
         // Like with keyDrop above, we wrap our custom keybind in InputConstants.getKey() to get the key's numerical code.
         else if (keyEvent.input() == InputConstants.getKey(HotkeyManager.getLockKeybind().saveString()).getValue()) {
-
-            AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 
             // Only allow locking slots in the inventory
             if (!(screen instanceof InventoryScreen)) return;
@@ -130,13 +139,10 @@ public abstract class AbstractContainerMixin {
             if (slot == null) {
                 LockSlot.LOGGER.warn("WARNING: Attempting to lock a null slot!");
             }
+            else if (slot.isFake()) { // Disallow "fake" slots (such as the result crafting inventory slot)
+                return;
+            }
             else {
-                int row = (slot.y - 84) / 18;
-                int col = (slot.x - 8) / 18;
-
-                // isLocked is true if the slot is newly locked
-                boolean isLocked = LockedValues.swapLockedArrayValue(row, col);
-
                 // Given that we must be in the inventory to get here, we can safely take
                 // reference to the top-left slot as index 9 (as in the inventory), without
                 // worrying about different containers having different slot indexes.
@@ -148,13 +154,33 @@ public abstract class AbstractContainerMixin {
                 int adjustedX = slot.x - topLeftSlot.x;
                 int adjustedY = slot.y - topLeftSlot.y;
 
+                // Row and column of the slot in the inventory
+                int row = adjustedIndex / 9;
+                int col = adjustedIndex % 9;
+
+                // Boolean determining if this slot should always be shown or not.
+                // Our core inventory slots make up rows 0 - 3, with row 4 as an "extras" row.
+                // We don't always want to show the extras row, but do with the core inventory.
+                boolean alwaysEnabled = row >= 0 && row <= 3;
+
+                // Check if adjustedIndex < 0. In that case, we are trying to lock something other than
+                // the core inventory (e.g., armor) and need to shift the row and col values accordingly.
+                if (adjustedIndex < 0) {
+                    row = 4; // Additional row for armor, offhand, etc.
+                    col = (adjustedIndex + 9) % 9; // Offset the adjusted index by 9 as to get positive values from % 9
+                    alwaysEnabled = false; // Update alwaysEnabled
+                }
+
+                // isLocked reflects the updated value for this slot (i.e., now locked -> true)
+                boolean isLocked = LockedValues.swapLockedArrayValue(row, col);
+
                 // Push the now locked slot to the list of locked slots,
                 // or pop it from the list, depending on whether the slot is now locked or not.
                 if (isLocked) {
-                    LockedValues.pushLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY));
+                    LockedValues.pushLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY, alwaysEnabled));
                 }
                 else {
-                    int rc = LockedValues.popLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY));
+                    int rc = LockedValues.popLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY, alwaysEnabled));
 
                     // Make sure it was successfully popped
                     // Display a console error if not
@@ -162,11 +188,6 @@ public abstract class AbstractContainerMixin {
                         LockSlot.LOGGER.error("ERROR: Slot with item {} and (x, y) ({}, {}) was not popped from the list!", slot.getItem(), slot.x, slot.y);
                     }
                 }
-
-                String s = "Clicked Slot's Position: (" + row + ", " + col + "), index:" + slot.index + "\n";
-                s += "After swapping, this slot is currently " + (LockedValues.getLockedValue(row, col) ? "" : "NOT ") + "locked.";
-
-                LockSlot.LOGGER.info(s);
 
                 // Play a sound effect when locking the slot
                 Minecraft client = Minecraft.getInstance();
@@ -215,6 +236,11 @@ public abstract class AbstractContainerMixin {
             // (Note: we need the leftPos and topPos because referenceSlot is still in reference to the container, not the window)
             x = referenceSlot.x + lock.x() + this.leftPos;
             y = referenceSlot.y + lock.y() + this.topPos;
+
+            // Some locks should not always be shown (e.g., armor slots)
+            // We only show these slots in the inventory, as that is the only place we will see them
+            // TODO: Verify this!
+            if (!lock.alwaysEnabled() && !(screen instanceof InventoryScreen)) continue;
 
             // Render the locked icon itself
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LockedValues.getLockRenderingId(), x, y, 0, 0, 16, 16, 16, 16);
@@ -266,5 +292,13 @@ public abstract class AbstractContainerMixin {
 
         // Not found, return -1 for error
         return -1;
+    }
+
+    @Unique
+    private int calculateAdjustedIndex(Slot slot) {
+        if (Minecraft.getInstance().player == null) return -1;
+
+        // Calculate our slot index relative to the top-left inventory slot (index 9).
+        return slot.index - getTopLeftSlotIndex();
     }
 }
