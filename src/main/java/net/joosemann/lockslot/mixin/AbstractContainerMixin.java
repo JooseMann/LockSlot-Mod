@@ -6,6 +6,7 @@ import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.data.LockedValues;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
 import net.joosemann.lockslot.util.LockInstance;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.*;
@@ -197,6 +198,27 @@ public abstract class AbstractContainerMixin {
         }
     }
 
+    @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ClickType;)V"), method = "checkHotbarKeyPressed", cancellable = true)
+    protected void hotbarKeyPressMixin(KeyEvent keyEvent, CallbackInfoReturnable<Boolean> cir) {
+        // Here, a key press triggered a hotkey to or from a hotbar slot.
+        // We need to check and make sure that both the slot hovered over and the corresponding hotbar slot are *not* locked.
+
+        boolean canPress = this.allowHotkeyPress(keyEvent.input());
+        if (!canPress) {
+            cir.setReturnValue(false);
+            cir.cancel();
+        }
+    }
+
+    @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ClickType;)V"), method = "checkHotbarMouseClicked", cancellable = true)
+    protected void hotbarMouseClickMixin(MouseButtonEvent mouseButtonEvent, CallbackInfo ci) {
+        // Like with hotbarKeyPressMixin above, this triggers when a mouse hotkey is pressed.
+        // We need to make sure that slots are not locked before we let this key press go through.
+
+        boolean canPress = this.allowHotkeyPress(mouseButtonEvent.input());
+        if (!canPress) ci.cancel();
+    }
+
     @Inject(at = @At(value = "TAIL"), method = "renderBackground")
     public void renderLocksMixin(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
         // Render any slots that are locked
@@ -245,6 +267,81 @@ public abstract class AbstractContainerMixin {
             // Render the locked icon itself
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LockedValues.getLockRenderingId(), x, y, 0, 0, 16, 16, 16, 16);
         }
+    }
+
+    // Determines whether a hotkey can go through or not, based only on the key's index.
+    // This abstracts away from keyboard presses vs. mouse clicks, as the underlying logic is the same.
+    @Unique
+    private boolean allowHotkeyPress(int keyIndex) {
+        // Narrow out edge cases: if the slot we are hotkeying to is null, then just return false.
+        if (this.hoveredSlot == null) return false;
+
+        // Declare some useful variables
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        KeyMapping keySwapOffhand = Minecraft.getInstance().options.keySwapOffhand;
+
+        // Figure out which hotbar index we are looking at
+
+        KeyMapping correspondingKey = null;
+
+        // Check for 1-9 hotkeys
+        for (KeyMapping key : Minecraft.getInstance().options.keyHotbarSlots) {
+            // Check for the same ASCII code -> same key
+            if (keyIndex == InputConstants.getKey(key.saveString()).getValue()) {
+                correspondingKey = key;
+                break;
+            }
+        }
+
+        // Check for offhand hotkey as well
+        if (keyIndex == InputConstants.getKey(keySwapOffhand.saveString()).getValue()) {
+            correspondingKey = keySwapOffhand;
+        }
+
+        if (correspondingKey == null) {
+            // Could not find corresponding hotbar key, send a warning and stop.
+            // Note: keyIndex holds the ASCII code, so casting to char just gives the corresponding character.
+            LockSlot.LOGGER.warn("Could not find hotbar key corresponding to key press {}.", (char) keyIndex);
+            return false;
+        }
+
+        // Index in the hotbar. The default key is the corresponding index as a string (starting from "1"),
+        // and it's value is it's ASCII number (1 is 49, 2 is 50, 3 is 51, ..., 9 is 57).
+        // So we offset the value by 49 to get indexes 0 through 8 (inclusive).
+        // We then add back 27 to make this index refer to the hotbar, instead of the top row of the inventory.
+        int hotbarIndex = (correspondingKey.getDefaultKey().getValue() - 49) + 27;
+
+        // This logic does not hold if we are not dealing with the hotbar (i.e., we are dealing with the offhand).
+        // Change that index accordingly.
+        if (correspondingKey.equals(keySwapOffhand)) {
+            hotbarIndex = 36; // Index of the offhand's slot (row 4, column 0).
+        }
+
+        // Check if the hotbar slot itself is locked.
+        if (LockedValues.determineSlotLockStatus(hotbarIndex)) {
+            // The hotbar slot here is locked, we need to prevent the hotkey.
+            if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
+            return false;
+        }
+
+        // Now check if the other slot we want to hotkey to is locked.
+        // This slot will always be our hovered slot, so we base our calculations off of that.
+        int standardizedIndex = this.hoveredSlot.index - this.getTopLeftSlotIndex();
+
+        // Create some helper variables for determining if this slot is locked.
+        int row = standardizedIndex / 9; // Row that the slot shows up on.
+        boolean alwaysShow = row >= 0 && row <= 3; // Whether this slot should always show or not.
+
+        // Now check if this slot is locked.
+        // Note that we could be dealing with slots where alwaysShow is false here, so we need to explicitly check that.
+        if (LockedValues.determineSlotLockStatus(standardizedIndex, alwaysShow, screen instanceof InventoryScreen)) {
+            // The hovered slot is locked, so we need to prevent this key press.
+            if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
+            return false;
+        }
+
+        // If neither slot is locked, then the key press can go through. Return true to indicate this.
+        return true;
     }
 
     @Unique

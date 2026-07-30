@@ -121,4 +121,22 @@ public class LockedValues {
 
         return getLockedValue(row, col);
     }
+
+    // Sometimes, we only want to know if a slot is locked and do not care about interacting with the slot.
+    // Therefore, we don't need to know whether we can properly interact with the slot via alwaysShow and isInventory,
+    // we only need to check based on the slot index itself.
+    public static boolean determineSlotLockStatus(int adjustedIndex) {
+        // Get the row and column values of this slot from its index
+        int row = adjustedIndex / 9;
+        int col = adjustedIndex % 9;
+
+        // Check if our adjusted index is negative. In that case, we are dealing with a slot in the 5th row.
+        // Adjusted the row and col values accordingly
+        if (adjustedIndex < 0) {
+            row = 4; // Extras row
+            col = (adjustedIndex + 9) / 9; // Add 9 to get a positive number without changing the result of the % 9
+        }
+
+        return getLockedValue(row, col);
+    }
 }
