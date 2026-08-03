@@ -65,6 +65,10 @@ public abstract class AbstractContainerMixin {
 
             cir.setReturnValue(false);
         }
+        // Don't try preventing a click if this slot is marked as fake (as in, we can't store something there)
+        else if (slot.isFake()) {
+            LockSlot.LOGGER.warn("WARNING: Can not treat fake slot as locked!");
+        }
         else {
             // Helper variables
             int adjustedIndex = calculateAdjustedIndex(slot);
@@ -102,9 +106,15 @@ public abstract class AbstractContainerMixin {
             }
 
             Slot slot = this.hoveredSlot;
+
+            // Don't attempt to prevent dropping an item on a null slot.
             if (slot == null) {
                 LockSlot.LOGGER.warn("WARNING: Null slot can not be thrown!");
                 cir.setReturnValue(false);
+            }
+            // Don't try to prevent it on a fake slot, either.
+            else if (slot.isFake()) {
+                LockSlot.LOGGER.warn("WARNING: Fake slot can not be thrown!");
             }
             else {
                 // Helper variables
@@ -141,7 +151,7 @@ public abstract class AbstractContainerMixin {
                 LockSlot.LOGGER.warn("WARNING: Attempting to lock a null slot!");
             }
             else if (slot.isFake()) { // Disallow "fake" slots (such as the result crafting inventory slot)
-                return;
+                LockSlot.LOGGER.warn("WARNING: Can not lock a fake slot!");
             }
             else {
                 // Given that we must be in the inventory to get here, we can safely take
