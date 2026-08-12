@@ -49,6 +49,7 @@ public abstract class AbstractContainerMixin {
     private void preventInventoryMouseClick(MouseButtonEvent mouseButtonEvent, boolean bl, CallbackInfoReturnable<Boolean> cir) {
 
         LocalPlayer player = Minecraft.getInstance().player;
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 
         // If we are in creative or spectator mode, don't prevent any mouse clicks.
         if (player != null && player.gameMode() != null) {
@@ -62,25 +63,40 @@ public abstract class AbstractContainerMixin {
         // or if outside the inventory is clicked.
         if (slot == null) {
             LockSlot.LOGGER.warn("WARNING: Null slot can not be clicked!");
-
             cir.setReturnValue(false);
+            return;
         }
         // Don't try preventing a click if this slot is marked as fake (as in, we can't store something there)
         else if (slot.isFake()) {
             LockSlot.LOGGER.warn("WARNING: Can not treat fake slot as locked!");
+            return;
         }
-        else {
-            // Helper variables
-            int adjustedIndex = calculateAdjustedIndex(slot);
-            boolean alwaysShow = adjustedIndex >= 0 && adjustedIndex <= 35;
-            AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 
-            // Only prevent the mouse click if the slot is locked
-            // TODO: Make sure this is consistent across different screens
-            if (LockedValues.determineSlotLockStatus(adjustedIndex, alwaysShow, screen instanceof InventoryScreen)) {
-                if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
-                cir.setReturnValue(false);
+        // Helper variables
+        int adjustedIndex = calculateAdjustedIndex(slot);
+        boolean alwaysShow = adjustedIndex >= 0 && adjustedIndex <= 35;
+        ItemStack carriedItem = screen.getMenu().getCarried();
+        ItemStack currentItem = slot.getItem();
+
+        // Only prevent the mouse click if the slot is locked
+        // TODO: Make sure this is consistent across different screens
+        if (LockedValues.determineSlotLockStatus(adjustedIndex, alwaysShow, screen instanceof InventoryScreen)) {
+            // The last case where we don't want to consider preventing a mouse click is when:
+            // 1) Placing a carried item into an empty locked slot (first condition), or
+            // 2) Adding more of the same item to a non-empty, non-full locked slot (items match and
+            // slot is non-full [i.e., currentItem.count() < slot.getMaxStackSize(ItemStack) items]: second condition).
+            // As luck would have it, the code still works as intended in these case, but it still shows
+            // the "Slot is locked!" text. So, only show that text if not dealing with those cases.
+            if (player != null && !((slot.getItem().isEmpty() && carriedItem != null)
+                || (slot.getItem().is(carriedItem.getItem())) && currentItem.getCount() < slot.getMaxStackSize(currentItem))) {
+                // We aren't placing an item on an empty locked slot, and we aren't adding more of an item
+                // to a (non-full) stack in a locked slot. Display the "Slot is locked!" text.
+                player.displayClientMessage(Component.literal("Slot is locked!"), false);
             }
+
+            // Cancel the mouse click.
+            cir.setReturnValue(false);
+            cir.cancel();
         }
 
     }
