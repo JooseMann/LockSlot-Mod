@@ -1,5 +1,7 @@
 package net.joosemann.lockslot.data;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -10,8 +12,9 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.ListIterator;
 
-// Class holding all data relating to the mod.
+// Class holding all client-side data relating to the mod.
 // Some classes that also work with this data will extend LockedValues to have closer access to the data as well.
+@Environment(EnvType.CLIENT)
 public class LockedValues {
     // 2D array that represents which slots in the inventory are currently locked.
     // NOTE: The last row is allocated for other slots (armor, off-hand, & crafting)

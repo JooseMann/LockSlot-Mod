@@ -1,15 +1,16 @@
 package net.joosemann.lockslot.util;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.joosemann.lockslot.data.LockedValues;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
 
-public class HelperMethods extends LockedValues {
+// Helper class for various methods involving lock data on the client-side.
+@Environment(EnvType.CLIENT)
+public class ClientHelperMethods extends LockedValues {
 
-    // Update our mod data from persistent data
+    // Update our client-side mod data from persistent data
     public static void updateLockData(List<LockInstance> lockData) {
         // Set lockedList to the provided data in lockData.
         // We need to convert to a LinkedList<LockInstance> from a List<LockInstance>. Use the LinkedList constructor.

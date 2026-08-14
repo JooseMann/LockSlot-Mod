@@ -1,11 +1,11 @@
 package net.joosemann.lockslot.networking.handlers;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.joosemann.lockslot.data.LockedValues;
+import net.joosemann.lockslot.data.ServerLockedValues;
 import net.joosemann.lockslot.networking.packets.LockInstancePayload;
 import net.joosemann.lockslot.util.LockInstance;
 
-public class ServerNetworkHandlers extends LockedValues {
+public class ServerNetworkHandlers {
     public static void registerServerReceivers() {
         // AddLockInstance Packet
         // Received from the client when the list of locked slots is updated.
@@ -20,13 +20,13 @@ public class ServerNetworkHandlers extends LockedValues {
 
                 // Check if we are adding or removing this LockInstance from the list
                 if (lock.locking()) { // Adding
-                    LockedValues.pushLockedSlot(lock);
+                    ServerLockedValues.pushLockedSlot(context.player().getUUID(), lock);
                 } else { // Removing
-                    LockedValues.popLockedSlot(lock);
+                    ServerLockedValues.popLockedSlot(context.player().getUUID(), lock);
                 }
 
-                // Swap the corresponding value on the boolean array.
-                LockedValues.swapLockedArrayValue(rowIndex, colIndex);
+                // Swap the corresponding value on the boolean array for this player.
+                ServerLockedValues.toggleMapArrayLock(context.player().getUUID(), rowIndex, colIndex);
             }
         }));
     }
