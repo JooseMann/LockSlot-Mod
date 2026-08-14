@@ -59,7 +59,7 @@ public abstract class AbstractContainerMenuMixin {
             // Now determine if this slot is locked
             if (LockedValues.determineSlotLockStatus(standardizedIndex, alwaysShow, menu instanceof InventoryMenu)) {
                 // Slot is locked, prevent the item swap.
-                if (player != null) player.displayClientMessage(Component.literal("Slot is locked!"), false);
+                if (player != null) player.displayClientMessage(Component.literal("Slot is locked!"), true);
                 ci.cancel();
             }
         }

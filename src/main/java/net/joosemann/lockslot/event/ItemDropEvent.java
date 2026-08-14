@@ -14,7 +14,7 @@ public class ItemDropEvent {
             int slotIndex = player.getInventory().getSelectedSlot();
 
             if (LockedValues.getLockedValue(3, slotIndex)) {
-                player.displayClientMessage(Component.literal("Slot is locked!"), false);
+                player.displayClientMessage(Component.literal("Slot is locked!"), true);
                 return InteractionResult.FAIL;
             }
 

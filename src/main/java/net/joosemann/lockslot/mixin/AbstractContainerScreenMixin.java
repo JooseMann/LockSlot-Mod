@@ -91,7 +91,7 @@ public abstract class AbstractContainerScreenMixin {
                 || (slot.getItem().is(carriedItem.getItem())) && currentItem.getCount() < slot.getMaxStackSize(currentItem))) {
                 // We aren't placing an item on an empty locked slot, and we aren't adding more of an item
                 // to a (non-full) stack in a locked slot. Display the "Slot is locked!" text.
-                player.displayClientMessage(Component.literal("Slot is locked!"), false);
+                player.displayClientMessage(Component.literal("Slot is locked!"), true);
             }
 
             // Cancel the mouse click.
@@ -139,7 +139,7 @@ public abstract class AbstractContainerScreenMixin {
 
                 // TODO: Make sure this is consistent across different screens
                 if (LockedValues.determineSlotLockStatus(adjustedIndex, alwaysShow, screen instanceof InventoryScreen)) {
-                    if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
+                    if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), true);
                     cir.setReturnValue(false);
                 }
             }
@@ -346,7 +346,7 @@ public abstract class AbstractContainerScreenMixin {
         // Check if the hotbar slot itself is locked.
         if (LockedValues.determineSlotLockStatus(hotbarIndex)) {
             // The hotbar slot here is locked, we need to prevent the hotkey.
-            if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
+            if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), true);
             return false;
         }
 
@@ -362,7 +362,7 @@ public abstract class AbstractContainerScreenMixin {
         // Note that we could be dealing with slots where alwaysShow is false here, so we need to explicitly check that.
         if (LockedValues.determineSlotLockStatus(standardizedIndex, alwaysShow, screen instanceof InventoryScreen)) {
             // The hovered slot is locked, so we need to prevent this key press.
-            if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), false);
+            if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.displayClientMessage(Component.literal("Slot is locked!"), true);
             return false;
         }
 
