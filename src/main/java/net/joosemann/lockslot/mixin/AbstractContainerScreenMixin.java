@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.data.LockedValues;
-import net.joosemann.lockslot.items.LockedIndicatorItem;
+import net.joosemann.lockslot.util.HelperMethods;
 import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -33,7 +33,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.ListIterator;
 
 @Mixin(AbstractContainerScreen.class)
-public abstract class AbstractContainerMixin {
+public abstract class AbstractContainerScreenMixin {
 
     @Shadow
     @Nullable
@@ -267,7 +267,7 @@ public abstract class AbstractContainerMixin {
 
         ListIterator<LockInstance> itr = LockedValues.getLockedListIterator();
         LockInstance lock;
-        Slot referenceSlot = screen.getMenu().getSlot(this.getTopLeftSlotIndex());
+        Slot referenceSlot = screen.getMenu().getSlot(HelperMethods.getTopLeftSlotIndex(screen));
 
         while (itr.hasNext()) {
             if (itr.previousIndex() == -1) {
@@ -352,7 +352,7 @@ public abstract class AbstractContainerMixin {
 
         // Now check if the other slot we want to hotkey to is locked.
         // This slot will always be our hovered slot, so we base our calculations off of that.
-        int standardizedIndex = this.hoveredSlot.index - this.getTopLeftSlotIndex();
+        int standardizedIndex = this.hoveredSlot.index - HelperMethods.getTopLeftSlotIndex(screen);
 
         // Create some helper variables for determining if this slot is locked.
         int row = standardizedIndex / 9; // Row that the slot shows up on.
@@ -371,57 +371,10 @@ public abstract class AbstractContainerMixin {
     }
 
     @Unique
-    private int getTopLeftSlotIndex() {
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-
-        int tryReferenceIndex = LockedValues.tryGetReferenceSlotIndex(screen);
-
-        // We likely already computed this value in the reference slot cache.
-        // If that's the case, then take the index from there instead of recalculating it.
-        // Note: this function returns -1 if we have not already found it, and otherwise gives a positive integer index.
-        if (tryReferenceIndex != -1) {
-            return tryReferenceIndex;
-        }
-
-        // If not, then we have to manually compute it. Do that here.
-
-        // Error check, -1 for invalid state
-        if (Minecraft.getInstance().player == null) return -1;
-
-        // The top-left slot of the inventory has index 9. Find the equivalent slot for this container
-        Slot base = Minecraft.getInstance().player.inventoryMenu.getSlot(9);
-
-        // Store the current item. We will have to overwrite it with a custom item temporarily,
-        // so that we can tell which slot is the same across different screens.
-        ItemStack prevItem = base.getItem();
-
-        base.set(LockedIndicatorItem.ITEM.getDefaultInstance());
-
-        for (Slot slot : screen.getMenu().slots) {
-            // Slots will be effectively equivalent in everything except index and container
-            // So, check the rest of the traits to make sure they are all equal
-            if (slot.getItem().equals(base.getItem())) {
-                // We found the correct slot
-                // Return the slot back to its original state
-                base.set(prevItem);
-
-                // Add the new index to our reference cache, so that we don't have to recalculate this later.
-                LockedValues.addReferenceSlot(screen, slot.index);
-
-                // Return the index with respect to *this*, instead of the inventory
-                return slot.index;
-            }
-        }
-
-        // Not found, return -1 for error
-        return -1;
-    }
-
-    @Unique
     private int calculateAdjustedIndex(Slot slot) {
         if (Minecraft.getInstance().player == null) return -1;
 
         // Calculate our slot index relative to the top-left inventory slot (index 9).
-        return slot.index - getTopLeftSlotIndex();
+        return slot.index - HelperMethods.getTopLeftSlotIndex((AbstractContainerScreen<?>) (Object) this);
     }
 }

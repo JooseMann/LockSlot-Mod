@@ -3,6 +3,7 @@
   "package": "net.joosemann.lockslot.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AbstractContainerMenuMixin",
     "InventoryMixin",
     "PlayerListMixin"
   ],
@@ -13,6 +14,6 @@
     "requireAnnotations": true
   },
   "client": [
-    "AbstractContainerMixin"
+    "AbstractContainerScreenMixin"
   ]
 }

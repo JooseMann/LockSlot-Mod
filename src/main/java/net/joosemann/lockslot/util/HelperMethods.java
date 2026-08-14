@@ -1,6 +1,11 @@
 package net.joosemann.lockslot.util;
 
 import net.joosemann.lockslot.data.LockedValues;
+import net.joosemann.lockslot.items.LockedIndicatorItem;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -52,5 +57,50 @@ public class HelperMethods extends LockedValues {
             // we know that its slot must be locked. Set the corresponding boolean to true.
             LockedValues.lockedArray[row][col] = true;
         }
+    }
+
+    // Gets the index of the top-left slot in the given screen, or -1 if not found.
+    public static int getTopLeftSlotIndex(AbstractContainerScreen<?> screen) {
+        int tryReferenceIndex = LockedValues.tryGetReferenceSlotIndex(screen);
+
+        // We likely already computed this value in the reference slot cache.
+        // If that's the case, then take the index from there instead of recalculating it.
+        // Note: this function returns -1 if we have not already found it, and otherwise gives a positive integer index.
+        if (tryReferenceIndex != -1) {
+            return tryReferenceIndex;
+        }
+
+        // If not, then we have to manually compute it. Do that here.
+
+        // Error check, -1 for invalid state
+        if (Minecraft.getInstance().player == null) return -1;
+
+        // The top-left slot of the inventory has index 9. Find the equivalent slot for this container
+        Slot base = Minecraft.getInstance().player.inventoryMenu.getSlot(9);
+
+        // Store the current item. We will have to overwrite it with a custom item temporarily,
+        // so that we can tell which slot is the same across different screens.
+        ItemStack prevItem = base.getItem();
+
+        base.set(LockedIndicatorItem.ITEM.getDefaultInstance());
+
+        for (Slot slot : screen.getMenu().slots) {
+            // Find the equivalent index for the top-left slot by checking for the same custom item.
+            // Only one slot should have this item (only the base slot, and only for this instant),
+            // so search for whichever slot in this screen also has that item.
+            if (slot.getItem().equals(base.getItem())) {
+                // We found the correct slot, return the slot back to its original state
+                base.set(prevItem);
+
+                // Add the new index to our reference cache, so that we don't have to recalculate this later.
+                LockedValues.addReferenceSlot(screen, slot.index);
+
+                // Return the index with respect to the given screen, instead of the inventory
+                return slot.index;
+            }
+        }
+
+        // Not found, return -1 for error
+        return -1;
     }
 }
