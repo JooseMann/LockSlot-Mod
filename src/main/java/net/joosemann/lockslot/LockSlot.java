@@ -8,6 +8,7 @@ import net.joosemann.lockslot.event.ItemDropEvent;
 import net.joosemann.lockslot.event.PlayerLoginEvent;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
 import net.joosemann.lockslot.networking.handlers.ServerNetworkHandlers;
+import net.joosemann.lockslot.networking.packets.CheckLockDesyncPayload;
 import net.joosemann.lockslot.networking.packets.LockDataPayload;
 import net.joosemann.lockslot.networking.packets.LockInstancePayload;
 import org.slf4j.Logger;
@@ -44,6 +45,9 @@ public class LockSlot implements ModInitializer {
 
 		// Register an individual LockInstance packet as C2S, to send whenever the client updates a lock.
 		PayloadTypeRegistry.playC2S().register(LockInstancePayload.ID, LockInstancePayload.STREAM_CODEC);
+
+		// Register a "desync-check" packet C2S that makes sure the server's data matches the client's.
+		PayloadTypeRegistry.playC2S().register(CheckLockDesyncPayload.ID, CheckLockDesyncPayload.STREAM_CODEC);
 
 		// Register server-side networking handlers
 		ServerNetworkHandlers.registerServerReceivers();

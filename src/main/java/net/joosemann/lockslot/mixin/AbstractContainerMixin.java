@@ -6,8 +6,10 @@ import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.data.LockedValues;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
+import net.joosemann.lockslot.networking.packets.CheckLockDesyncPayload;
 import net.joosemann.lockslot.networking.packets.LockInstancePayload;
 import net.joosemann.lockslot.util.LockInstance;
+import net.joosemann.lockslot.util.PlayerLockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.*;
@@ -45,6 +47,9 @@ public abstract class AbstractContainerMixin {
 
     @Shadow
     protected int topPos;
+
+    @Unique
+    private int numLocksToggled = 0;
 
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;"), method = "mouseClicked", cancellable = true)
     private void preventInventoryMouseClick(MouseButtonEvent mouseButtonEvent, boolean bl, CallbackInfoReturnable<Boolean> cir) {
@@ -186,6 +191,22 @@ public abstract class AbstractContainerMixin {
                 Minecraft client = Minecraft.getInstance();
                 SoundInstance sound = SimpleSoundInstance.forUI(SoundEvents.AMETHYST_CLUSTER_HIT, 1.0f, 1.0f);
                 client.getSoundManager().play(sound);
+
+                // Increment the number of total slots we've toggled
+                ++this.numLocksToggled;
+
+                // After a certain amount of locks activated (10 here),
+                // send a packet to make sure we haven't desynced from the server.
+                if (this.numLocksToggled % 10 == 0) {
+                    // Get all of our lock data as is
+                    PlayerLockData playerData = new PlayerLockData(player.getStringUUID(), LockedValues.getLockedList());
+
+                    // Write as a packet
+                    CheckLockDesyncPayload payload = new CheckLockDesyncPayload(playerData);
+
+                    // Send the packet to the server
+                    ClientPlayNetworking.send(payload);
+                }
             }
         }
     }
