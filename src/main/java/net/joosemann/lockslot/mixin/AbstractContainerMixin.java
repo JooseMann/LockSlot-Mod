@@ -6,9 +6,10 @@ import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.data.LockedValues;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
-import net.joosemann.lockslot.networking.packets.CheckLockDesyncPayload;
+import net.joosemann.lockslot.networking.packets.PlayerDataPayload;
 import net.joosemann.lockslot.networking.packets.LockInstancePayload;
 import net.joosemann.lockslot.util.LockInstance;
+import net.joosemann.lockslot.util.PacketData;
 import net.joosemann.lockslot.util.PlayerLockData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -160,15 +161,15 @@ public abstract class AbstractContainerMixin {
                 // or pop it from the list, depending on whether the slot is now locked or not.
                 // Also send a packet to the server so that it knows of the updated state
                 if (isLocked) {
-                    LockInstance lock = new LockInstance(adjustedIndex, adjustedX, adjustedY, true);
+                    LockInstance lock = new LockInstance(adjustedIndex, adjustedX, adjustedY);
 
                     LockedValues.pushLockedSlot(lock);
 
-                    LockInstancePayload packet = new LockInstancePayload(lock);
+                    LockInstancePayload packet = new LockInstancePayload(lock, PacketData.PacketUse.LOCKING);
                     ClientPlayNetworking.send(packet);
                 }
                 else {
-                    LockInstance lock = new LockInstance(adjustedIndex, adjustedX, adjustedY, false);
+                    LockInstance lock = new LockInstance(adjustedIndex, adjustedX, adjustedY);
 
                     int rc = LockedValues.popLockedSlot(lock);
 
@@ -178,7 +179,7 @@ public abstract class AbstractContainerMixin {
                         LockSlot.LOGGER.error("ERROR: Slot with item {} and (x, y) ({}, {}) was not popped from the list!", slot.getItem(), slot.x, slot.y);
                     }
 
-                    LockInstancePayload packet = new LockInstancePayload(lock);
+                    LockInstancePayload packet = new LockInstancePayload(lock, PacketData.PacketUse.UNLOCKING);
                     ClientPlayNetworking.send(packet);
                 }
 
@@ -202,7 +203,7 @@ public abstract class AbstractContainerMixin {
                     PlayerLockData playerData = new PlayerLockData(player.getStringUUID(), LockedValues.getLockedList());
 
                     // Write as a packet
-                    CheckLockDesyncPayload payload = new CheckLockDesyncPayload(playerData);
+                    PlayerDataPayload payload = new PlayerDataPayload(playerData, PacketData.PacketUse.CHECK_DESYNC);
 
                     // Send the packet to the server
                     ClientPlayNetworking.send(payload);

@@ -12,6 +12,7 @@ import java.util.List;
 
 // Packet payload that sends lock information back and forth.
 // Used as a S2C payload for updating an entire list of locked slots at once (such as when logging into a server).
+// This packet is only used for this one purpose, so does not also contain a PacketData.PacketUse.
 public record LockDataPayload(List<LockInstance> lockedList) implements CustomPacketPayload {
 
     public static final Identifier LOCK_PAYLOAD_ID = Identifier.fromNamespaceAndPath(LockSlot.MOD_ID, "lock_data");
