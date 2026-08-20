@@ -4,8 +4,10 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.joosemann.lockslot.data.ServerLockedValues;
 import net.joosemann.lockslot.networking.packets.PlayerDataPayload;
 import net.joosemann.lockslot.networking.packets.LockInstancePayload;
+import net.joosemann.lockslot.util.ClientHelperMethods;
 import net.joosemann.lockslot.util.LockInstance;
 import net.joosemann.lockslot.util.PacketData;
+import net.joosemann.lockslot.util.ServerHelperMethods;
 
 import java.util.Arrays;
 import java.util.ListIterator;
@@ -129,6 +131,16 @@ public class ServerNetworkHandlers {
     }
     
     private static void updateData(PlayerDataPayload payload, ServerPlayNetworking.Context context) {
-        // Not implemented
+        // We want to directly update whatever data we have with the data in payload.data()
+
+        // If on a dedicate server, update everything server-side
+        if (context.server().isDedicatedServer()) {
+            // Update server data for this player with the List<LockInstance> in payload.data().locks().
+            ServerHelperMethods.updateServerLockData(UUID.fromString(payload.data().uuid()), payload.data().locks());
+        }
+        // Otherwise (on an integrated server) just update everything directly
+        else {
+            ClientHelperMethods.updateLockData(payload.data().locks());
+        }
     }
 }

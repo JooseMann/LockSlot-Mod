@@ -10,6 +10,7 @@ import net.minecraft.world.inventory.Slot;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
 
 // Class holding all client-side data relating to the mod.
@@ -29,6 +30,20 @@ public class LockedValues {
     private static final HashMap<AbstractContainerScreen<?>, Integer> referenceSlotCache = new HashMap<>();
 
     private static final Identifier lockRenderingId = Identifier.fromNamespaceAndPath(LockSlot.MOD_ID, "textures/gui/locked_slot_bkg.png");
+
+    // Initializes lockedArray with the given boolean[][] `arr`.
+    // Resets lockedArray to all false if `arr` is null.
+    public static void lockedArrayInit(boolean[][] arr) {
+        if (arr == null) arr = new boolean[5][9]; // Defaults to all false
+        lockedArray = arr;
+    }
+
+    // Initializes lockedList with the given List<LockInstance> `list`.
+    // Like lockedArrayInit(), lockedList is reset (to an empty list) if `list` is null.
+    public static void lockedListInit(List<LockInstance> list) {
+        if (list == null) list = new LinkedList<>(); // Defaults to an empty list
+        lockedList = new LinkedList<>(list);
+    }
 
     public static Identifier getLockRenderingId() {
         return lockRenderingId;

@@ -2,10 +2,12 @@ package net.joosemann.lockslot;
 
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.joosemann.lockslot.event.ItemDropEvent;
 import net.joosemann.lockslot.event.PlayerLoginEvent;
+import net.joosemann.lockslot.event.RegisterServerCommandEvent;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
 import net.joosemann.lockslot.networking.handlers.ServerNetworkHandlers;
 import net.joosemann.lockslot.networking.packets.PlayerDataPayload;
@@ -35,6 +37,7 @@ public class LockSlot implements ModInitializer {
 
 		// Register events
 
+		CommandRegistrationCallback.EVENT.register(new RegisterServerCommandEvent());
 		ItemDropEvent.registerItemDropEvent();
 		ServerPlayConnectionEvents.JOIN.register(new PlayerLoginEvent());
 
