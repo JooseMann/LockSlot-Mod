@@ -1,4 +1,4 @@
-# LockSlot: A Minecraft Mod for a Better Inventory
+# Lock Slot: A Minecraft Mod for a Better Inventory
 
 LockSlot is a simple Minecraft mod that allows the user to place a lock on an inventory slot, preventing that slot from having its item dropped on accident.
 
@@ -7,6 +7,11 @@ LockSlot is a simple Minecraft mod that allows the user to place a lock on an in
 1. Lock and unlock a slot in your inventory with a hotkey, settable in the options
 2. See what slots are locked visually with a changed background behind the item
 3. Stop any accidental item drops or clicks on locked slots in your inventory
+4. Works natively in multiplayer, with each player able to lock their own slots
+5. Use commands to fix data issues resulting from poor Wi-Fi on a multiplayer server
+    1. `/lockslot data reset` to reset your own data
+    2. `/lockslot data reset all` in a server console to reset every player's data
+    3. `/lockslot data sync` to sync your data with a server if they desync (often from a poor connection).
 
 ## Supported Versions
 
@@ -18,13 +23,13 @@ The mod is **not** currently available for download, as it still has many featur
 
 ## Project Progress
 
-In no particular order, 
+In no particular order,
 - [X] Create a locking mechanism, where a player can not throw a given item.
 - [X] Create a GUI-based way to show the player that a specific slot is locked.
-  - [X] Ensure that the system works thoroughly across different GUIs and their menus (such as recipe book menus).
+    - [X] Ensure that the system works thoroughly across different GUIs and their menus (such as recipe book menus).
 - [X] Provide noticeable feedback to the player when locking / unlocking a slot and when attempting to throw or pick up an item in a locked slot (e.g., a sound effect or chat message).
 - [X] Save which slots are locked between game sessions.
-- [ ] Ensure that the mod works effectively and smoothly in multiplayer.
+- [X] Ensure that the mod works effectively and smoothly in multiplayer.
 - [ ] General bug fixes & other small updates (e.g. hotkey labels in the options menu)
 
 
