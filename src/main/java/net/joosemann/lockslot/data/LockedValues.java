@@ -1,5 +1,7 @@
 package net.joosemann.lockslot.data;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.util.LockInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -7,10 +9,12 @@ import net.minecraft.resources.Identifier;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
 
-// Class holding all data relating to the mod.
+// Class holding all client-side data relating to the mod.
 // Some classes that also work with this data will extend LockedValues to have closer access to the data as well.
+@Environment(EnvType.CLIENT)
 public class LockedValues {
     // 2D array that represents which slots in the inventory are currently locked.
     // NOTE: The last row is allocated for other slots (armor, off-hand, & crafting)
@@ -26,12 +30,31 @@ public class LockedValues {
 
     private static final Identifier lockRenderingId = Identifier.fromNamespaceAndPath(LockSlot.MOD_ID, "textures/gui/locked_slot_bkg.png");
 
+    // Initializes lockedArray with the given boolean[][] `arr`.
+    // Resets lockedArray to all false if `arr` is null.
+    public static void lockedArrayInit(boolean[][] arr) {
+        if (arr == null) arr = new boolean[5][9]; // Defaults to all false
+        lockedArray = arr;
+    }
+
+    // Initializes lockedList with the given List<LockInstance> `list`.
+    // Like lockedArrayInit(), lockedList is reset (to an empty list) if `list` is null.
+    public static void lockedListInit(List<LockInstance> list) {
+        if (list == null) list = new LinkedList<>(); // Defaults to an empty list
+        lockedList = new LinkedList<>(list);
+    }
+
     public static Identifier getLockRenderingId() {
         return lockRenderingId;
     }
 
     public static boolean getLockedValue(int i, int j) {
         return lockedArray[i][j];
+    }
+
+    // Get the lockedList
+    public static LinkedList<LockInstance> getLockedList() {
+        return lockedList;
     }
 
     // Get the iterator of lockedList
