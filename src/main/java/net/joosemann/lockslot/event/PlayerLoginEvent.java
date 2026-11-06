@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.jspecify.annotations.NonNull;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public class PlayerLoginEvent implements ServerPlayConnectionEvents.Join {
@@ -25,8 +26,16 @@ public class PlayerLoginEvent implements ServerPlayConnectionEvents.Join {
         ServerPlayer player = handler.player;
 
         // Check if we have data attached to the player.
-        // If not, we do not have any data to reference, so we will just use our default values in LockedValues.
-        if (!player.hasAttached(LockInstance.LOCK_ATTACHMENT_TYPE)) return;
+        // If not, clear out old data (possibly non-empty data from an old world).
+        if (!player.hasAttached(LockInstance.LOCK_ATTACHMENT_TYPE)) {
+            // "Updating" server lock data to nothing will just reset it to default.
+            if (server.isDedicatedServer()) {
+                ServerHelperMethods.updateServerLockData(player.getUUID(), new LinkedList<>());
+            }
+            else {
+                ClientHelperMethods.updateLockData(new LinkedList<>());
+            }
+        }
 
         // Now that we know that we have data, grab it here.
         List<LockInstance> lockData = player.getAttached(LockInstance.LOCK_ATTACHMENT_TYPE);

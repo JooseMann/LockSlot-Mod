@@ -42,6 +42,13 @@ public class ServerHelperMethods {
             int row = lock.index() / 9;
             int col = lock.index() % 9;
 
+            // If our adjusted index is negative, then we are dealing with a slot in the 5th (extra) row
+            // Adjust our row and col values accordingly
+            if (lock.index() < 0) {
+                row = 4; // Extras row
+                col = (lock.index() + 9) % 9; // Make col positive without changing result by adding 9
+            }
+
             // Since we found this row and column in the persistent data,
             // we know that its slot must be locked.
             // Every value defaults to false, so toggle it to true.

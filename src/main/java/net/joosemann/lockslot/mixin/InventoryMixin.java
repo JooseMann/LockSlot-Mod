@@ -13,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -41,7 +42,7 @@ public abstract class InventoryMixin {
         // Check if this value is locked on the client
         if (LockedValues.getLockedValue(3, slotIndex)) {
             // Slot is locked, tell the player and prevent the interaction.
-            player.displayClientMessage(Component.literal("Slot is locked!"), false);
+            player.displayClientMessage(Component.literal("Slot is locked!"), true);
             cir.setReturnValue(ItemStack.EMPTY);
             cir.cancel();
         }
@@ -65,11 +66,22 @@ public abstract class InventoryMixin {
         }
     }
 
-    // Prevent items from being picked up in an empty locked slot.
+    // (Client-side) Prevent items from being picked up in an empty locked slot.
     @Environment(EnvType.CLIENT)
     @ModifyReturnValue(at = @At(value = "RETURN"), method = "getFreeSlot")
-    private int getNonLockedFreeSlot(int original) {
+    private int getClientsideNonLockedFreeSlot(int original) {
+        return this.getOpenSlot(original, EnvType.CLIENT);
+    }
 
+    // (Server-side) Prevent items from being picked up in an empty locked slot.
+    @Environment(EnvType.SERVER)
+    @ModifyReturnValue(at = @At(value = "RETURN"), method = "getFreeSlot")
+    private int getServersideNonLockedFreeSlot(int original) {
+        return this.getOpenSlot(original, EnvType.SERVER);
+    }
+
+    @Unique
+    private int getOpenSlot(int original, EnvType env) {
         // If no slot was found originally, then we won't find one with stricter conditions.
         // Return -1 to signal "no valid slot found".
         if (original == -1) return -1;
@@ -84,7 +96,13 @@ public abstract class InventoryMixin {
         if (row == -1) row = 3;
 
         // Check if this slot is unlocked, in which case we can use the original value.
-        if (!LockedValues.getLockedValue(row, col)) return original;
+        if (env.equals(EnvType.CLIENT)) { // Check with Client-side data
+            if (!LockedValues.getLockedValue(row, col)) return original;
+        }
+        else { // Check with Server-side data
+            Optional<Boolean> isLocked = ServerLockedValues.getLockedMapArrayValue(player.getUUID(), row, col);
+            if (isLocked.isPresent() && !isLocked.get()) return original;
+        }
 
         // Otherwise, this slot is locked, and we need to find another unlocked slot.
         for (int i = original + 1; i < this.items.size(); ++i) {
@@ -92,8 +110,16 @@ public abstract class InventoryMixin {
             row = i >= 9 ? i / 9 - 1 : 3; // Same logic as above: i / 9 - 1 if i / 9 > 0, otherwise 3
             col = i % 9;
             // Find another slot is that both empty and unlocked
-            if (this.items.get(i).isEmpty() && !LockedValues.getLockedValue(row, col)) {
-                return i;
+            if (this.items.get(i).isEmpty()) {
+                // Check client-side case
+                if (env.equals(EnvType.CLIENT)) {
+                    if (!LockedValues.getLockedValue(row, col)) return i;
+                }
+                // Check server-side case
+                else {
+                    Optional<Boolean> isLocked = ServerLockedValues.getLockedMapArrayValue(player.getUUID(), row, col);
+                    if (isLocked.isPresent() && !isLocked.get()) return i;
+                }
             }
         }
 

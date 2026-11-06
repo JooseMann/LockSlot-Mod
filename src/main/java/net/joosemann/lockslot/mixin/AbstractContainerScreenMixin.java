@@ -1,11 +1,16 @@
 package net.joosemann.lockslot.mixin;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.data.LockedValues;
-import net.joosemann.lockslot.util.HelperMethods;
+import net.joosemann.lockslot.networking.packets.LockInstancePayload;
+import net.joosemann.lockslot.networking.packets.PlayerDataPayload;
+import net.joosemann.lockslot.util.ClientHelperMethods;
 import net.joosemann.lockslot.util.LockInstance;
+import net.joosemann.lockslot.util.PacketData;
+import net.joosemann.lockslot.util.PlayerLockData;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -44,6 +49,9 @@ public abstract class AbstractContainerScreenMixin {
 
     @Shadow
     protected int topPos;
+
+    @Unique
+    private int numLocksToggled = 0;
 
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;"), method = "mouseClicked", cancellable = true)
     private void preventInventoryMouseClick(MouseButtonEvent mouseButtonEvent, boolean bl, CallbackInfoReturnable<Boolean> cir) {
@@ -203,23 +211,48 @@ public abstract class AbstractContainerScreenMixin {
 
                 // Push the now locked slot to the list of locked slots,
                 // or pop it from the list, depending on whether the slot is now locked or not.
+
+                LockInstance lock = new LockInstance(adjustedIndex, adjustedX, adjustedY, alwaysEnabled);
+
                 if (isLocked) {
-                    LockedValues.pushLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY, alwaysEnabled));
+                    LockedValues.pushLockedSlot(lock);
+
+                    LockInstancePayload packet = new LockInstancePayload(lock, PacketData.PacketUse.LOCKING);
+                    ClientPlayNetworking.send(packet);
                 }
                 else {
-                    int rc = LockedValues.popLockedSlot(new LockInstance(adjustedIndex, adjustedX, adjustedY, alwaysEnabled));
+                    int rc = LockedValues.popLockedSlot(lock);
 
                     // Make sure it was successfully popped
                     // Display a console error if not
                     if (rc == -1) {
                         LockSlot.LOGGER.error("ERROR: Slot with item {} and (x, y) ({}, {}) was not popped from the list!", slot.getItem(), slot.x, slot.y);
                     }
+
+                    LockInstancePayload packet = new LockInstancePayload(lock, PacketData.PacketUse.UNLOCKING);
+                    ClientPlayNetworking.send(packet);
                 }
 
                 // Play a sound effect when locking the slot
                 Minecraft client = Minecraft.getInstance();
                 SoundInstance sound = SimpleSoundInstance.forUI(SoundEvents.AMETHYST_CLUSTER_HIT, 1.0f, 1.0f);
                 client.getSoundManager().play(sound);
+
+                // Increment the number of total slots we've toggled
+                ++this.numLocksToggled;
+
+                // After a certain amount of locks activated (10 here),
+                // send a packet to make sure we haven't desynced from the server.
+                if (this.numLocksToggled % 10 == 0) {
+                    // Get all of our lock data as is
+                    PlayerLockData playerData = new PlayerLockData(player.getStringUUID(), LockedValues.getLockedList());
+
+                    // Write as a packet
+                    PlayerDataPayload payload = new PlayerDataPayload(playerData, PacketData.PacketUse.CHECK_DESYNC);
+
+                    // Send the packet to the server
+                    ClientPlayNetworking.send(payload);
+                }
             }
         }
     }
@@ -267,7 +300,7 @@ public abstract class AbstractContainerScreenMixin {
 
         ListIterator<LockInstance> itr = LockedValues.getLockedListIterator();
         LockInstance lock;
-        Slot referenceSlot = screen.getMenu().getSlot(HelperMethods.getTopLeftSlotIndex(screen));
+        Slot referenceSlot = screen.getMenu().getSlot(ClientHelperMethods.getTopLeftSlotIndex(screen));
 
         while (itr.hasNext()) {
             if (itr.previousIndex() == -1) {
@@ -352,7 +385,7 @@ public abstract class AbstractContainerScreenMixin {
 
         // Now check if the other slot we want to hotkey to is locked.
         // This slot will always be our hovered slot, so we base our calculations off of that.
-        int standardizedIndex = this.hoveredSlot.index - HelperMethods.getTopLeftSlotIndex(screen);
+        int standardizedIndex = this.hoveredSlot.index - ClientHelperMethods.getTopLeftSlotIndex(screen);
 
         // Create some helper variables for determining if this slot is locked.
         int row = standardizedIndex / 9; // Row that the slot shows up on.
@@ -375,6 +408,6 @@ public abstract class AbstractContainerScreenMixin {
         if (Minecraft.getInstance().player == null) return -1;
 
         // Calculate our slot index relative to the top-left inventory slot (index 9).
-        return slot.index - HelperMethods.getTopLeftSlotIndex((AbstractContainerScreen<?>) (Object) this);
+        return slot.index - ClientHelperMethods.getTopLeftSlotIndex((AbstractContainerScreen<?>) (Object) this);
     }
 }

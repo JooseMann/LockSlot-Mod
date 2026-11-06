@@ -1,7 +1,7 @@
 package net.joosemann.lockslot.mixin;
 
 import net.joosemann.lockslot.data.LockedValues;
-import net.joosemann.lockslot.util.HelperMethods;
+import net.joosemann.lockslot.util.ClientHelperMethods;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -49,7 +49,7 @@ public abstract class AbstractContainerMenuMixin {
             // If so, check if the given slot is locked. Prevent the items from being swapped if so.
 
             // Standardized index for this slot (top-left is always 0)
-            int topLeftIndex = HelperMethods.getTopLeftSlotIndex((AbstractContainerScreen<?>) Minecraft.getInstance().screen);
+            int topLeftIndex = ClientHelperMethods.getTopLeftSlotIndex((AbstractContainerScreen<?>) Minecraft.getInstance().screen);
             int standardizedIndex = i - topLeftIndex;
 
             // Helper variables
