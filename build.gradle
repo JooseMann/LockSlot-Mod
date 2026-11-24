@@ -11,11 +11,16 @@ base {
 }
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+	// Add Terraformers from Maven to integrate with ModMenu
+	maven {
+		name = "Terraformers"
+		url = "https://maven.terraformersmc.com/"
+	}
+
+	maven {
+		// Also add the repo for ClothConfig
+		{ url = uri("https://maven.shedaniel.me") }
+	}
 }
 
 fabricApi {
@@ -32,7 +37,12 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	
+
+	// Mod Menu. Add as a compile-time dependency so it is not required to run the mod
+	modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+	// Cloth Config. Add as a dependency so config can be easily changed by the user.
+	modImplementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
 }
 
 processResources {

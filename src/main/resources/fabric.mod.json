@@ -8,8 +8,7 @@
 		"JooseMann"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/JooseMann/LockSlot-Mod"
 	},
 	"license": "MIT",
 	"icon": "assets/lock-slot/icon.png",
@@ -20,6 +19,9 @@
 		],
 		"client": [
 			"net.joosemann.lockslot.LockSlotClient"
+		],
+		"modmenu": [
+			"net.joosemann.lockslot.modmenu.LockSlotModMenuImpl"
 		]
 	},
 	"mixins": [
