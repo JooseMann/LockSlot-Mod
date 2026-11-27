@@ -6,8 +6,8 @@ import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.joosemann.lockslot.client.HotkeyManager;
 import net.joosemann.lockslot.event.RegisterClientCommandEvent;
 import net.joosemann.lockslot.event.TooltipUpdateEvent;
-import net.joosemann.lockslot.modmenu.screens.LockSlotConfigScreen;
 import net.joosemann.lockslot.networking.handlers.ClientNetworkHandlers;
+import net.joosemann.lockslot.util.ClientHelperMethods;
 
 public class LockSlotClient implements ClientModInitializer {
     @Override
@@ -27,6 +27,6 @@ public class LockSlotClient implements ClientModInitializer {
         /* Mod Configuration - Client-side Only */
 
         // Grab data from the configuration file, set default values
-        LockSlotConfigScreen.readFromConfigFile();
+        ClientHelperMethods.readFromConfigFile();
     }
 }

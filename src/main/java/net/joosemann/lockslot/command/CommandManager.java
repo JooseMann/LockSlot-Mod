@@ -31,7 +31,7 @@ public class CommandManager {
 
         // Tell the server to update its data with empty (default) data
         PlayerLockData data = new PlayerLockData(player.getStringUUID(), new LinkedList<>());
-        PlayerDataPayload packet = new PlayerDataPayload(data, PacketData.PacketUse.UPDATE_DATA);
+        PlayerDataPayload packet = new PlayerDataPayload(data, PacketData.PacketUse.UPDATE_LOCK_DATA);
         ClientPlayNetworking.send(packet);
 
         // Send success message

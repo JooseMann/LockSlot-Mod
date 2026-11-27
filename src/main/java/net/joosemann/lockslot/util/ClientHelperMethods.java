@@ -1,21 +1,35 @@
 package net.joosemann.lockslot.util;
 
+import com.google.gson.Gson;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.joosemann.lockslot.LockSlot;
+import net.joosemann.lockslot.data.LockConfigData;
 import net.joosemann.lockslot.data.LockedValues;
 import net.joosemann.lockslot.items.LockedIndicatorItem;
+import net.joosemann.lockslot.modmenu.screens.LockSlotConfigScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 // Helper class for various methods involving lock data on the client-side.
 @Environment(EnvType.CLIENT)
 public class ClientHelperMethods extends LockedValues {
 
-    // Update our client-side mod data from persistent data
+    /**
+     * Update our client-side mod data from existing data.<br>
+     * This data may be taken from persistent data, or it may be a
+     * signal from other code (e.g., a packet) to update data directly.
+     * In any case, this method overwrites whatever previous mod data
+     * existed beforehand.
+     *
+     * @param lockData The new data to update current mod data with.
+     */
     public static void updateLockData(List<LockInstance> lockData) {
         // Set lockedList to the provided data in lockData.
         // We need to convert to a LinkedList<LockInstance> from a List<LockInstance>. Use the LinkedList constructor.
@@ -60,7 +74,11 @@ public class ClientHelperMethods extends LockedValues {
         }
     }
 
-    // Gets the index of the top-left slot in the given screen, or -1 if not found.
+    /**
+     * Gets the index of the top-left slot in the given {@code screen}, or -1 if not found.
+     *
+     * @param screen The current screen of which we want the top-left index.
+     */
     public static int getTopLeftSlotIndex(AbstractContainerScreen<?> screen) {
         int tryReferenceIndex = LockedValues.tryGetReferenceSlotIndex(screen);
 
@@ -103,5 +121,39 @@ public class ClientHelperMethods extends LockedValues {
 
         // Not found, return -1 for error
         return -1;
+    }
+
+    /**
+     * Reads from the configuration file given by {@link LockSlotConfigScreen#CONFIG_FILE_PATH} and sets the
+     * appropriate configuration in the code. Does nothing (and thus, falls back to default
+     * values) if the file does not exist, i.e. settings have not been changed from their defaults.
+     */
+    public static void readFromConfigFile() {
+        // Note: config is in JSON format
+        Gson gson = new Gson(); // Use Gson to parse the JSON file
+        File cfgFile = new File(LockSlotConfigScreen.CONFIG_FILE_PATH);
+
+        // Do nothing if the file does not exist
+        if (!cfgFile.exists()) return;
+
+        // Try to read from the file
+        // Catch and print the exception if we fail, but do not let the error propagate (so the game doesn't crash)
+        try (Scanner reader = new Scanner(cfgFile)) {
+            while (reader.hasNextLine()) {
+                String line = reader.nextLine();
+
+                // Get the data for SHOULD_LOCK_PICKUPS
+                if (line.contains("should_lock_pickups")) {
+                    // Cut down the line from `"should_lock_pickups": "[data]"` to just `"[data]"`
+                    // So take everything from after the colon and space
+                    String data = line.substring(line.indexOf(':') + 2);
+                    LockConfigData.setShouldLockPickups(gson.fromJson(data, boolean.class));
+                }
+            }
+        } catch (IOException e) {
+            // File is not found or can not be read for whatever reason (e.g., file permissions)
+            LockSlot.LOGGER.error("Could not read LockSlot configuration file: {}", LockSlotConfigScreen.CONFIG_FILE_PATH);
+            LockSlot.LOGGER.error(e.getMessage());
+        }
     }
 }

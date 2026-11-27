@@ -6,15 +6,20 @@ import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.joosemann.lockslot.LockSlot;
 import net.joosemann.lockslot.data.LockConfigData;
+import net.joosemann.lockslot.networking.packets.ModConfigPayload;
+import net.joosemann.lockslot.util.PacketData;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Scanner;
 
 /**
  * Simple utility class to handle the mod's configuration.<br>
@@ -97,38 +102,19 @@ public class LockSlotConfigScreen {
             // The given file does not exist after it should have been created, or can otherwise not be written to.
             LockSlot.LOGGER.error("Could not write to LockSlot configuration file: " + CONFIG_FILE_PATH);
             LockSlot.LOGGER.error(e.getMessage());
-        }
-    }
-
-    /**
-     * Reads from the configuration file given by {@link CONFIG_FILE_PATH} and sets the
-     * appropriate configuration in the code. Does nothing (and thus, falls back to default
-     * values) if the file does not exist, i.e. settings have not been changed from their defaults.
-     */
-    public static void readFromConfigFile() {
-        Gson gson = new Gson();
-        File cfgFile = new File(CONFIG_FILE_PATH);
-
-        // Do nothing if the file does not exist
-        if (!cfgFile.exists()) return;
-
-        // Try to read from the file (note: Scanner is auto-closed here)
-        try (Scanner reader = new Scanner(cfgFile)) {
-            while (reader.hasNextLine()) {
-                String line = reader.nextLine();
-
-                // Get the data for SHOULD_LOCK_PICKUPS
-                if (line.contains("should_lock_pickups")) {
-                    // Cut down the line from `"should_lock_pickups": "[data]"` to just `"[data]"`
-                    // So take everything from after the colon and space
-                    String data = line.substring(line.indexOf(':') + 2);
-                    LockConfigData.setShouldLockPickups(gson.fromJson(data, boolean.class));
+        } finally {
+            // If needed, send a packet to the server to update it of the config change
+            IntegratedServer integratedServer = Minecraft.getInstance().getSingleplayerServer();
+            // Determine if we are in a multiplayer world (modeled after the private method Minecraft.isMultiplayer())
+            if (!Minecraft.getInstance().isLocalServer() || integratedServer != null && integratedServer.isPublished()) {
+                // We are on a dedicated server, so the player should be non-null.
+                LocalPlayer player = Minecraft.getInstance().player;
+                if (player != null) {
+                    // Send a C2S packet to inform the server of the config update.
+                    ModConfigPayload packet = new ModConfigPayload(LockConfigData.shouldLockPickups(), PacketData.PacketUse.UPDATE_LOCK_DATA);
+                    ClientPlayNetworking.send(packet);
                 }
             }
-        } catch (IOException e) {
-            // File is not found or can not be read for whatever reason (e.g., file permissions)
-            LockSlot.LOGGER.error("Could not read LockSlot configuration file: " + CONFIG_FILE_PATH);
-            LockSlot.LOGGER.error(e.getMessage());
         }
     }
 }

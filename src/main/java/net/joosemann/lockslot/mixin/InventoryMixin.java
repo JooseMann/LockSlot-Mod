@@ -3,6 +3,7 @@ package net.joosemann.lockslot.mixin;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.joosemann.lockslot.data.LockConfigData;
 import net.joosemann.lockslot.data.LockedValues;
 import net.minecraft.core.NonNullList;
 import net.joosemann.lockslot.data.ServerLockedValues;
@@ -82,6 +83,16 @@ public abstract class InventoryMixin {
 
     @Unique
     private int getOpenSlot(int original, EnvType env) {
+        // Only try to find an open, non-locked slot if allowed in mod configuration.
+        // If this functionality is disabled, just return the original slot (as if not mixing-in at all).
+        if (env.equals(EnvType.CLIENT)) { // Client-side check
+            if (!LockConfigData.shouldLockPickups()) return original;
+        }
+        else { // Server-side check
+            Optional<Boolean> configOption = LockConfigData.shouldLockPickupsForPlayer(this.player.getUUID());
+            if (configOption.isEmpty() || !configOption.get()) return original;
+        }
+
         // If no slot was found originally, then we won't find one with stricter conditions.
         // Return -1 to signal "no valid slot found".
         if (original == -1) return -1;

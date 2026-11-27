@@ -4,8 +4,10 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.joosemann.lockslot.networking.packets.LockDataPayload;
+import net.joosemann.lockslot.networking.packets.ModConfigPayload;
 import net.joosemann.lockslot.util.ClientHelperMethods;
 import net.joosemann.lockslot.util.LockInstance;
+import net.joosemann.lockslot.util.PacketData;
 import net.joosemann.lockslot.util.ServerHelperMethods;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -20,6 +22,7 @@ public class PlayerLoginEvent implements ServerPlayConnectionEvents.Join {
     @Override
     public void onPlayReady(ServerGamePacketListenerImpl handler, @NonNull PacketSender sender, @NonNull MinecraftServer server) {
         // When logging in, we want to restore any lock data, if it exists.
+        // We also want to restore the proper configuration, if any exists.
         // Check if we have any lock data to reference, and set it if so.
 
         // Player here is never null, so we don't need to check for that case
@@ -56,6 +59,16 @@ public class PlayerLoginEvent implements ServerPlayConnectionEvents.Join {
             // Now send this data to the client, so these values can also be updated client-side.
             LockDataPayload payload = new LockDataPayload(lockData);
             ServerPlayNetworking.send(player, payload);
+        }
+
+        // We want to restore configuration settings from the player's client-side data.
+        // To do this, we'll need the client to send its data back to us on the server.
+        // (Only do this if on a dedicated server - if not, the client can handle this on its own!)
+        if (server.isDedicatedServer()) {
+            // Request data from the client, which will send it back to us.
+            // We can then handle the data in networking/handlers/ServerNetworkHandlers.
+            ModConfigPayload requestDataPacket = new ModConfigPayload(false, PacketData.PacketUse.REQUEST_DATA);
+            ServerPlayNetworking.send(player, requestDataPacket);
         }
     }
 }

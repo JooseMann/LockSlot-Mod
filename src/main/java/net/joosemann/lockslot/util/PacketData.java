@@ -9,11 +9,15 @@ public class PacketData {
     //   - Unlocking a slot
     //   - Checking for a desync
     //   - Directly updating data
+    //   - Directly updating the config
+    //   - Request data from the other end
     public enum PacketUse {
         LOCKING,
         UNLOCKING,
         CHECK_DESYNC,
-        UPDATE_DATA
+        UPDATE_LOCK_DATA,
+        UPDATE_CONFIG,
+        REQUEST_DATA
     }
 
     // Converts an integer to a PacketUse if possible, or a failed DataResult if not.
@@ -22,7 +26,9 @@ public class PacketData {
             case 0 -> DataResult.success(PacketUse.LOCKING);
             case 1 -> DataResult.success(PacketUse.UNLOCKING);
             case 2 -> DataResult.success(PacketUse.CHECK_DESYNC);
-            case 3 -> DataResult.success(PacketUse.UPDATE_DATA);
+            case 3 -> DataResult.success(PacketUse.UPDATE_LOCK_DATA);
+            case 4 -> DataResult.success(PacketUse.UPDATE_CONFIG);
+            case 5 -> DataResult.success(PacketUse.REQUEST_DATA);
             default -> DataResult.error(() -> "Invalid index " + num);
         };
     }
@@ -33,7 +39,9 @@ public class PacketData {
             case PacketUse.LOCKING -> 0;
             case PacketUse.UNLOCKING -> 1;
             case PacketUse.CHECK_DESYNC -> 2;
-            case PacketUse.UPDATE_DATA -> 3;
+            case PacketUse.UPDATE_LOCK_DATA -> 3;
+            case PacketUse.UPDATE_CONFIG -> 4;
+            case PacketUse.REQUEST_DATA -> 5;
         };
     }
 

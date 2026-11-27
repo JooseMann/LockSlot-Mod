@@ -1,7 +1,9 @@
 package net.joosemann.lockslot.networking.handlers;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.joosemann.lockslot.data.LockConfigData;
 import net.joosemann.lockslot.data.ServerLockedValues;
+import net.joosemann.lockslot.networking.packets.ModConfigPayload;
 import net.joosemann.lockslot.networking.packets.PlayerDataPayload;
 import net.joosemann.lockslot.networking.packets.LockInstancePayload;
 import net.joosemann.lockslot.util.ClientHelperMethods;
@@ -15,11 +17,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class ServerNetworkHandlers {
+
+    /**
+     * Registers all server-side network handlers on mod initialization.
+     */
     public static void registerServerReceivers() {
-        // AddLockInstance Packet
+        // Add LockInstance Packet
         // Received from the client when the list of locked slots is updated.
         // Used to keep the client and the server in sync with the list of locked slots.
-        ServerPlayNetworking.registerGlobalReceiver(LockInstancePayload.ID, ((payload, context) -> {
+        ServerPlayNetworking.registerGlobalReceiver(LockInstancePayload.ID, (payload, context) -> {
             // If we are playing on a dedicated server, make sure to update locked values there as well
             if (context.server().isDedicatedServer()) {
                 // Get the lock and its row & column indices
@@ -37,19 +43,33 @@ public class ServerNetworkHandlers {
                 // Swap the corresponding value on the boolean array for this player.
                 ServerLockedValues.toggleMapArrayLock(context.player().getUUID(), rowIndex, colIndex);
             }
-        }));
+        });
 
-        // CheckLockDesync Packet
-        // Received from the client whenever we need to make sure that the locks haven't desynced,
-        // and resyncs with the data from the client if necessary.
-        ServerPlayNetworking.registerGlobalReceiver(PlayerDataPayload.ID, ((payload, context) -> {
+        // Data Check & Data Update Packets
+        // Received from the client when:
+        //   1. We need to make sure that the locks haven't desynced, or
+        //   2. We need to directly update lock data on the server-side.
+        // In either case, this is done to resync with the data from the client if necessary.
+        ServerPlayNetworking.registerGlobalReceiver(PlayerDataPayload.ID, (payload, context) -> {
             if (payload.packetUse().equals(PacketData.PacketUse.CHECK_DESYNC)) {
                 checkDesync(payload, context);
             }
-            else if (payload.packetUse().equals(PacketData.PacketUse.UPDATE_DATA)) {
+            else if (payload.packetUse().equals(PacketData.PacketUse.UPDATE_LOCK_DATA)) {
                 updateData(payload, context);
             }
-        }));
+        });
+
+        // Update Player Config Packet
+        // Received by the client in one of the following scenarios:
+        //   1. Whenever a client updates their config, and the server needs to be aware of the change.
+        //   2. The client sends their config, after a request by the server (with PacketData.PacketUse.REQUEST_DATA).
+        // In both cases, that means this server-side code is for a dedicated server.
+        // Both cases use PacketData.PacketUse.UPDATE_CONFIG, so there is no need to check for it.
+        ServerPlayNetworking.registerGlobalReceiver(ModConfigPayload.ID, (payload, context) -> {
+            if (context.server().isDedicatedServer()) {
+                LockConfigData.setShouldLockPickupsForPlayer(context.player().getUUID(), payload.newValue());
+            }
+        });
     }
 
     private static void checkDesync(PlayerDataPayload payload, ServerPlayNetworking.Context context) {
